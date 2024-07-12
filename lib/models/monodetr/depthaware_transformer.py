@@ -464,13 +464,13 @@ class DepthAwareDecoderLayer(nn.Module):
         # self attention
         q = k = self.with_pos_embed(tgt, query_pos)
         
-        q_content = self.sa_qcontent_proj(q)
-        q_pos = self.sa_qpos_proj(q)
-        k_content = self.sa_kcontent_proj(k)
-        k_pos = self.sa_kpos_proj(k)
-        v = self.sa_v_proj(tgt)
-        q = q_content + q_pos
-        k = k_content + k_pos
+        # q_content = self.sa_qcontent_proj(q)
+        # q_pos = self.sa_qpos_proj(q)
+        # k_content = self.sa_kcontent_proj(k)
+        # k_pos = self.sa_kpos_proj(k)
+        # v = self.sa_v_proj(tgt)
+        # q = q_content + q_pos
+        # k = k_content + k_pos
         
         q = q.transpose(0, 1)
         k = k.transpose(0, 1)
@@ -656,5 +656,6 @@ def build_depthaware_transformer(cfg):
         enc_n_points=cfg['enc_n_points'],
         two_stage=cfg['two_stage'],
         two_stage_num_proposals=cfg['num_queries'],
+        group_num=cfg['group_num'],
         use_dab= cfg['use_dab'],
         two_stage_dino = cfg['two_stage_dino'])
