@@ -12,6 +12,7 @@ sys.path.append(ROOT_DIR)
 import yaml
 import argparse
 import datetime
+import shutil
 
 from lib.helpers.model_helper import build_model
 from lib.helpers.dataloader_helper import build_dataloader
@@ -35,11 +36,16 @@ def main():
     set_random_seed(cfg.get('random_seed', 444))
 
     model_name = cfg['model_name']
-    output_path = os.path.join('./' + cfg["trainer"]['save_path'], model_name)
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_path = os.path.join('./' + cfg["trainer"]['save_path'], f"{model_name}_{timestamp}")
     os.makedirs(output_path, exist_ok=True)
 
-    log_file = os.path.join(output_path, 'train.log.%s' % datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+    shutil.copy(args.config, output_path)
+
+    log_file = os.path.join(output_path, f'train.log.{timestamp}')
     logger = create_logger(log_file)
+
+    sys.stdout = open(os.path.join(output_path, f'{model_name}.log'), 'w')
 
     # build dataloader
     train_loader, test_loader = build_dataloader(cfg['dataset'])
