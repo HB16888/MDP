@@ -65,7 +65,7 @@ model:
   num_queries: 50
   enc_n_points: 4
   dec_n_points: 4
-  group_num: 1
+  group_num: 11
   # DN
   scalar: 5
   label_noise_scale: 0.2

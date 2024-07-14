@@ -48,7 +48,7 @@ def main():
     sys.stdout = open(os.path.join(output_path, f'{model_name}.log'), 'w')
 
     # build dataloader
-    train_loader, test_loader = build_dataloader(cfg['dataset'])
+    train_loader, test_loader = build_dataloader(cfg['dataset'],workers=cfg['dataset']['dataloader']['num_workers'])
 
     # build model
     model, loss = build_model(cfg['model'])
@@ -59,6 +59,7 @@ def main():
         model = model.to(device)
     else:
         model = torch.nn.DataParallel(model, device_ids=gpu_ids).to(device)
+        loss = torch.nn.DataParallel(loss, device_ids=gpu_ids).to(device)
 
     if args.evaluate_only:
         logger.info('###################  Evaluation Only  ##################')
@@ -67,7 +68,8 @@ def main():
                         dataloader=test_loader,
                         logger=logger,
                         train_cfg=cfg['trainer'],
-                        model_name=model_name)
+                        model_name=model_name,
+                        output_path=output_path)
         tester.test()
         return
     #ipdb.set_trace()
@@ -85,14 +87,16 @@ def main():
                       warmup_lr_scheduler=warmup_lr_scheduler,
                       logger=logger,
                       loss=loss,
-                      model_name=model_name)
+                      model_name=model_name,
+                      output_path=output_path)
 
     tester = Tester(cfg=cfg['tester'],
                     model=trainer.model,
                     dataloader=test_loader,
                     logger=logger,
                     train_cfg=cfg['trainer'],
-                    model_name=model_name)
+                    model_name=model_name,
+                    output_path=output_path)
     if cfg['dataset']['test_split'] != 'test':
         trainer.tester = tester
 

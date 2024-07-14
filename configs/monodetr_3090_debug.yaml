@@ -24,6 +24,9 @@ dataset:
   shift: 0.05
 
   depth_scale: 'normal'
+  dataloader: 
+    num_workers: 8
+    pin_memory: True
 
 
 model_name: 'monodetr'

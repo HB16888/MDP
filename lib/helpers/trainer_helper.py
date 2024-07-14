@@ -23,7 +23,8 @@ class Trainer(object):
                  warmup_lr_scheduler,
                  logger,
                  loss,
-                 model_name):
+                 model_name,
+                 output_path):
         self.cfg = cfg
         self.model = model
         self.optimizer = optimizer
@@ -38,7 +39,7 @@ class Trainer(object):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.detr_loss = loss
         self.model_name = model_name
-        self.output_dir = os.path.join('./' + cfg['save_path'], model_name)
+        self.output_dir = output_path
         self.tester = None
 
         # loading pretrain/resume model
@@ -125,7 +126,7 @@ class Trainer(object):
             for key in targets.keys():
                 targets[key] = targets[key].to(self.device)
             img_sizes = targets['img_size']
-            targets = self.prepare_targets(targets, inputs.shape[0])
+            #targets = self.prepare_targets(targets, inputs.shape[0])
             ##dn
             dn_args = None
             if self.cfg["use_dn"]:
@@ -138,7 +139,12 @@ class Trainer(object):
             #ipdb.set_trace()
             detr_losses_dict = self.detr_loss(outputs, targets, mask_dict)
 
-            weight_dict = self.detr_loss.weight_dict
+            if isinstance(self.detr_loss, torch.nn.DataParallel):
+                weight_dict = self.detr_loss.module.weight_dict
+                for key, value in detr_losses_dict.items():
+                    detr_losses_dict[key] = value.mean()
+            else:
+                weight_dict = self.detr_loss.weight_dict
             detr_losses_dict_weighted = [detr_losses_dict[k] * weight_dict[k] for k in detr_losses_dict.keys() if k in weight_dict]
             detr_losses = sum(detr_losses_dict_weighted)
 
@@ -172,16 +178,16 @@ class Trainer(object):
             progress_bar.update()
         progress_bar.close()
 
-    def prepare_targets(self, targets, batch_size):
-        targets_list = []
-        mask = targets['mask_2d']
+def prepare_targets(targets, batch_size):
+    targets_list = []
+    mask = targets['mask_2d']
 
-        key_list = ['labels', 'boxes', 'calibs', 'depth', 'size_3d', 'heading_bin', 'heading_res', 'boxes_3d']
-        for bz in range(batch_size):
-            target_dict = {}
-            for key, val in targets.items():
-                if key in key_list:
-                    target_dict[key] = val[bz][mask[bz]]
-            targets_list.append(target_dict)
-        return targets_list
+    key_list = ['labels', 'boxes', 'calibs', 'depth', 'size_3d', 'heading_bin', 'heading_res', 'boxes_3d']
+    for bz in range(batch_size):
+        target_dict = {}
+        for key, val in targets.items():
+            if key in key_list:
+                target_dict[key] = val[bz][mask[bz]]
+        targets_list.append(target_dict)
+    return targets_list
 

@@ -19,7 +19,7 @@ from .depth_predictor import DepthPredictor
 from .depth_predictor.ddn_loss import DDNLoss
 from lib.losses.focal_loss import sigmoid_focal_loss
 from .dn_components import prepare_for_dn, dn_post_process, compute_dn_loss
-
+from ...helpers.trainer_helper import prepare_targets
 
 def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -152,7 +152,7 @@ class MonoDETR(nn.Module):
                - samples.tensor: batched images, of shape [batch_size x 3 x H x W]
                - samples.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
         """
-
+        targets=prepare_targets(targets, images.shape[0])
         features, pos = self.backbone(images)
 
         srcs = []
@@ -494,6 +494,7 @@ class SetCriterion(nn.Module):
              targets: list of dicts, such that len(targets) == batch_size.
                       The expected keys in each dict depends on the losses applied, see each loss' doc
         """
+        targets=prepare_targets(targets, outputs['pred_logits'].shape[0])
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
         group_num = self.group_num if self.training else 1
 
@@ -569,6 +570,7 @@ def build(cfg):
         two_stage=cfg['two_stage'],
         init_box=cfg['init_box'],
         use_dab = cfg['use_dab'],
+        group_num=cfg['group_num'],
         two_stage_dino=cfg['two_stage_dino'])
 
     # matcher
@@ -606,7 +608,8 @@ def build(cfg):
         matcher=matcher,
         weight_dict=weight_dict,
         focal_alpha=cfg['focal_alpha'],
-        losses=losses)
+        losses=losses,
+        group_num=cfg['group_num'])
 
     device = torch.device(cfg['device'])
     criterion.to(device)
