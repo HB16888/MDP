@@ -4,13 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="06346a47-4e14-408d-8ff0-be42b51aaf0f" name="更改" comment="stable-diffusion edition">
+    <list default="true" id="06346a47-4e14-408d-8ff0-be42b51aaf0f" name="更改" comment="fix the huggingface problem, please notice the file path for pretrained weights in the stable-diffusion/ldm/modules/encoders/modules.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/configs/monodetr_3090_11_group_num.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/configs/monodetr_3090_11_group_num.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/configs/monodetr_3090_2_gpus_11_group_num.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/configs/monodetr_3090_2_gpus_11_group_num.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/configs/monodetr_3090.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/configs/monodetr_3090.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/configs/monodetr_3090_2_gpus.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/configs/monodetr_3090_2_gpus.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/models/monodetr/monodetr.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib/models/monodetr/monodetr.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/models/monodetr/sd_encoder.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib/models/monodetr/sd_encoder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tools/train_val.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/train_val.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train.sh" beforeDir="false" afterPath="$PROJECT_DIR$/train.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -70,7 +69,7 @@
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
-        <env name="CUDA_VISIBLE_DEVICES" value="1" />
+        <env name="CUDA_VISIBLE_DEVICES" value="6,7" />
       </envs>
       <option name="SDK_HOME" value="" />
       <option name="SDK_NAME" value="Remote Python 3.8.5 (sftp://xkzhu@222.20.94.235:8701/home/xkzhu/miniconda3/envs/ldm/bin/python)" />
@@ -80,7 +79,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tools/train_val.py" />
-      <option name="PARAMETERS" value="--config configs/monodetr_3090_11_group_num.yaml" />
+      <option name="PARAMETERS" value="--config configs/monodetr_3090_2_gpus_11_group_num.yaml" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -126,7 +125,7 @@
       <workItem from="1720879039933" duration="595000" />
       <workItem from="1720932983236" duration="250000" />
       <workItem from="1721009469129" duration="13048000" />
-      <workItem from="1721026805856" duration="993000" />
+      <workItem from="1721026805856" duration="9548000" />
     </task>
     <task id="LOCAL-00001" summary="fix the CUDA out of memory for the RTX3090 error">
       <option name="closed" value="true" />
@@ -160,7 +159,15 @@
       <option name="project" value="LOCAL" />
       <updated>1721016140197</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="fix the huggingface problem, please notice the file path for pretrained weights in the stable-diffusion/ldm/modules/encoders/modules.py">
+      <option name="closed" value="true" />
+      <created>1721028011029</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1721028011029</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -182,7 +189,8 @@
     <MESSAGE value="diffusion backbone" />
     <MESSAGE value="kitti text embedding" />
     <MESSAGE value="stable-diffusion edition" />
-    <option name="LAST_COMMIT_MESSAGE" value="stable-diffusion edition" />
+    <MESSAGE value="fix the huggingface problem, please notice the file path for pretrained weights in the stable-diffusion/ldm/modules/encoders/modules.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix the huggingface problem, please notice the file path for pretrained weights in the stable-diffusion/ldm/modules/encoders/modules.py" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -192,18 +200,23 @@
           <line>49</line>
           <option name="timeStamp" value="6" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/lib/models/monodetr/monodetr.py</url>
+          <line>175</line>
+          <option name="timeStamp" value="15" />
+        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
     <watches-manager>
       <configuration name="PythonConfigurationType">
         <watch expression="model.'t_embedder.mlp.0.bias' (139852925436032)" />
-        <watch expression="features[1].tensors.data.device" />
+        <watch expression="features[1].tensors.data.device" language="Python" />
       </configuration>
     </watches-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/MonoDETR$diffusion_backbone.coverage" NAME="diffusion_backbone 覆盖结果" MODIFIED="1720700198246" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
-    <SUITE FILE_PATH="coverage/MonoDETR$GPU_1_Train.coverage" NAME="GPU-1-Train 覆盖结果" MODIFIED="1721027325491" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/MonoDETR$GPU_1_Train.coverage" NAME="GPU-1-Train 覆盖结果" MODIFIED="1721043054132" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/MonoDETR$GPU_0_Train.coverage" NAME="GPU-0-Train 覆盖结果" MODIFIED="1720681570401" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="D:\MonoDETR" />
     <SUITE FILE_PATH="coverage/MonoDETR$tokenization_utils_base.coverage" NAME="tokenization_utils_base 覆盖结果" MODIFIED="1720837606567" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$USER_HOME$/AppData/Local/JetBrains/PyCharm2023.2/remote_sources/-194952124/315844087/transformers" />
     <SUITE FILE_PATH="coverage/MonoDETR$train.coverage" NAME="train 覆盖结果" MODIFIED="1720409598375" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tools" />

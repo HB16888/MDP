@@ -11,13 +11,16 @@ from einops import rearrange, repeat
 from timm.models.layers import trunc_normal_
 from inspect import isfunction
 import torch.nn.functional as F
-from .stable_diffusion.ldm.util import instantiate_from_config
+from ldm.util import instantiate_from_config
+from utils.misc import NestedTensor
+
+
 def exists(val):
     return val is not None
 
 
 def uniq(arr):
-    return{el: True for el in arr}.keys()
+    return {el: True for el in arr}.keys()
 
 
 def default(val, d):
@@ -25,11 +28,12 @@ def default(val, d):
         return val
     return d() if isfunction(d) else d
 
-class VPDEncoder(nn.Module):
+
+class VPDDepthEncoder(nn.Module):
     def __init__(self, out_dim=1024, ldm_prior=[320, 640, 1280 + 1280], sd_path=None, text_dim=768,
                  ):
         super().__init__()
-
+        self.postion_embedding = PositionEmbeddingSine()
         self.layer1 = nn.Sequential(
             nn.Conv2d(ldm_prior[0], ldm_prior[0], 3, stride=2, padding=1),
             nn.GroupNorm(16, ldm_prior[0]),
@@ -51,8 +55,8 @@ class VPDEncoder(nn.Module):
 
         ### stable diffusion layers
 
-        config = OmegaConf.load('configs/v1-inference.yaml')
-        config.model.params.ckpt_path = 'v1-5-pruned-emaonly.ckpt'
+        config = OmegaConf.load('./configs/v1-inference.yaml')
+        config.model.params.ckpt_path = './outputs/sd1/v1-5-pruned-emaonly.ckpt'
 
         sd_model = instantiate_from_config(config.model)
         self.encoder_vq = sd_model.first_stage_model
@@ -67,9 +71,7 @@ class VPDEncoder(nn.Module):
             param.requires_grad = False
 
         self.text_adapter = TextAdapterDepth(text_dim=text_dim)
-        class_embeddings = torch.load('./kitti_embeddings.pth')
-
-        self.register_buffer('class_embeddings', class_embeddings)
+        self.class_embeddings = torch.load('./kitti_embeddings.pth')
         self.gamma = nn.Parameter(torch.ones(text_dim) * 1e-4)
 
     def _init_weights(self, m):
@@ -98,8 +100,14 @@ class VPDEncoder(nn.Module):
         # import pdb; pdb.set_trace()
         outs = self.unet(latents, t, c_crossattn=[c_crossattn])
         feats = [outs[0], outs[1], torch.cat([outs[2], F.interpolate(outs[3], scale_factor=2)], dim=1)]
-        x = torch.cat([self.layer1(feats[0]), self.layer2(feats[1]), feats[2]], dim=1)
-        return self.out_layer(x)
+        pos = []
+        for x in feats:
+            pos.append(self.postion_embedding(x))
+        # x = torch.cat([self.layer1(feats[0]), self.layer2(feats[1]), feats[2]], dim=1)
+        # out = self.out_layer(x)
+
+        return feats, pos
+
 
 class UNetWrapper(nn.Module):
     def __init__(self, unet, use_attn=True, base_size=512, max_attn_size=None,
@@ -156,6 +164,7 @@ class TextAdapterDepth(nn.Module):
 
     def forward(self, latents, texts, gamma):
         # use the gamma to blend
+        texts = texts[0].unsqueeze(0)
         n_sen, channel = texts.shape
         bs = latents.shape[0]
 
@@ -194,11 +203,12 @@ class AttentionControl(abc.ABC):
         self.num_att_layers = -1
         self.cur_att_layer = 0
 
+
 class AttentionStore(AttentionControl):
     @staticmethod
     def get_empty_store():
         return {"down_cross": [], "mid_cross": [], "up_cross": [],
-                "down_self": [],  "mid_self": [],  "up_self": []}
+                "down_self": [], "mid_self": [], "up_self": []}
 
     def forward(self, attn, is_cross: bool, place_in_unet: str):
         key = f"{place_in_unet}_{'cross' if is_cross else 'self'}"
@@ -237,7 +247,7 @@ class AttentionStore(AttentionControl):
 
 def register_hier_output(model):
     self = model.diffusion_model
-    from .stable_diffusion.ldm.modules.diffusionmodules.util import checkpoint, timestep_embedding
+    from ldm.modules.diffusionmodules.util import checkpoint, timestep_embedding
     def forward(x, timesteps=None, context=None, y=None, **kwargs):
         """
         Apply the model to an input batch.
@@ -277,6 +287,7 @@ def register_hier_output(model):
         return out_list
 
     self.forward = forward
+
 
 def register_attention_control(model, controller):
     def ca_forward(self, place_in_unet):
@@ -342,3 +353,42 @@ def register_attention_control(model, controller):
             cross_att_count += register_recr(net[1], 0, "mid")
 
     controller.num_att_layers = cross_att_count
+
+
+class PositionEmbeddingSine(nn.Module):
+    """
+    This is a more standard version of the position embedding, very similar to the one
+    used by the Attention is all you need paper, generalized to work on images.
+    """
+    def __init__(self, num_pos_feats=64, temperature=10000, normalize=False, scale=None):
+        super().__init__()
+        self.num_pos_feats = num_pos_feats
+        self.temperature = temperature
+        self.normalize = normalize
+        if scale is not None and normalize is False:
+            raise ValueError("normalize should be True if scale is passed")
+        if scale is None:
+            scale = 2 * math.pi
+        self.scale = scale
+
+    def forward(self, tensor_list: NestedTensor):
+        x = tensor_list.tensors
+        mask = tensor_list.mask
+        assert mask is not None
+        not_mask = ~mask
+        y_embed = not_mask.cumsum(1, dtype=torch.float32)
+        x_embed = not_mask.cumsum(2, dtype=torch.float32)
+        if self.normalize:
+            eps = 1e-6
+            y_embed = y_embed / (y_embed[:, -1:, :] + eps) * self.scale
+            x_embed = x_embed / (x_embed[:, :, -1:] + eps) * self.scale
+
+        dim_t = torch.arange(self.num_pos_feats, dtype=torch.float32, device=x.device)
+        dim_t = self.temperature ** (2 * (dim_t // 2) / self.num_pos_feats)
+
+        pos_x = x_embed[:, :, :, None] / dim_t
+        pos_y = y_embed[:, :, :, None] / dim_t
+        pos_x = torch.stack((pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4).flatten(3)
+        pos_y = torch.stack((pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4).flatten(3)
+        pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
+        return pos
