@@ -11,7 +11,7 @@ from einops import rearrange, repeat
 from timm.models.layers import trunc_normal_
 from inspect import isfunction
 import torch.nn.functional as F
-from ldm.util import instantiate_from_config
+from .stable_diffusion.ldm.util import instantiate_from_config
 
 def exists(val):
     return val is not None
@@ -238,7 +238,7 @@ class AttentionStore(AttentionControl):
 
 def register_hier_output(model):
     self = model.diffusion_model
-    from ldm.modules.diffusionmodules.util import checkpoint, timestep_embedding
+    from .stable_diffusion.ldm.modules.diffusionmodules.util import checkpoint, timestep_embedding
     def forward(x, timesteps=None, context=None, y=None, **kwargs):
         """
         Apply the model to an input batch.
