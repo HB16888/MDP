@@ -1,4 +1,2 @@
 
-[submodule "lib/models/monodetr/stable_diffusion"]
-	path = lib/models/monodetr/stable_diffusion
-	url = https://github.com/CompVis/stable-diffusion.git
+
