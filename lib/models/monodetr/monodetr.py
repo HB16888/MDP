@@ -20,6 +20,8 @@ from .depth_predictor.ddn_loss import DDNLoss
 from lib.losses.focal_loss import sigmoid_focal_loss
 from .dn_components import prepare_for_dn, dn_post_process, compute_dn_loss
 from ...helpers.trainer_helper import prepare_targets
+from .sd_encoder import VPDDepthEncoder
+from torchvision import transforms
 
 def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -61,6 +63,11 @@ class MonoDETR(nn.Module):
         self.angle_embed = MLP(hidden_dim, hidden_dim, 24, 2)
         self.depth_embed = MLP(hidden_dim, hidden_dim, 2, 2)  # depth and deviation
         self.use_dab = use_dab
+
+        embed_dim = 192
+        channels_in = embed_dim * 8
+
+        self.encoder = VPDDepthEncoder(out_dim=channels_in)
 
         if init_box == True:
             nn.init.constant_(self.bbox_embed.layers[-1].weight.data, 0)
@@ -152,8 +159,19 @@ class MonoDETR(nn.Module):
                - samples.tensor: batched images, of shape [batch_size x 3 x H x W]
                - samples.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
         """
-        targets=prepare_targets(targets, images.shape[0])
+        targets = prepare_targets(targets, images.shape[0])
+
+        """
+         images: [batch_size, 3, H, W] where H is 384 and W is 1280
+         here we try to resize it to 512x512
+        """
+
+        images = resize_and_pad(images)
+
+        conv_feats = self.encoder(images)
+
         features, pos = self.backbone(images)
+
 
         srcs = []
         masks = []
@@ -615,3 +633,37 @@ def build(cfg):
     criterion.to(device)
     
     return model, criterion
+
+def resize_and_pad(images):
+    """
+    Resize and pad images to 512x512
+    Args:
+        images: Tensor of shape [batch_size, 3, H, W] where H is 384 and W is 1280
+    Returns:
+        Tensor of shape [batch_size, 3, 512, 512]
+    """
+    batch_size, channels, original_height, original_width = images.shape
+
+    # Define the target height and width
+    target_height = 512
+    target_width = 512
+
+    # Compute the scale factor for resizing
+    scale_factor = min(target_height / original_height, target_width / original_width)
+
+    # Calculate new dimensions
+    new_height = int(original_height * scale_factor)
+    new_width = int(original_width * scale_factor)
+
+    # Resize the images
+    resize_transform = transforms.Resize((new_height, new_width))
+    resized_images = resize_transform(images)
+
+    # Calculate padding
+    pad_height = (target_height - new_height) // 2
+    pad_width = (target_width - new_width) // 2
+
+    # Pad the images
+    padded_images = F.pad(resized_images, (pad_width, pad_width, pad_height, pad_height))
+
+    return padded_images

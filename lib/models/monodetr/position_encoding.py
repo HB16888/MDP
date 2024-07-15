@@ -13,9 +13,9 @@ Various positional encodings for the transformer.
 import math
 import torch
 from torch import nn
-
 from utils.misc import NestedTensor
-
+import torch.nn.functional as F
+import numpy as np
 
 class PositionEmbeddingSine(nn.Module):
     """
@@ -85,6 +85,35 @@ class PositionEmbeddingLearned(nn.Module):
         ceil_coord = (floor_coord + 1).clamp(max=49)
         return embed(floor_coord) * (1 - delta) + embed(ceil_coord) * delta
 
+class PositionEmbeddingProcessed(nn.Module):
+    """
+    Position embedding processing module as per the given diagram.
+    """
+    def __init__(self, num_pos_feats=256):
+        super().__init__()
+        self.num_pos_feats = num_pos_feats
+
+    def forward(self, tensor_list: NestedTensor):
+        x = tensor_list.tensors
+        H, W = x.shape[-2:]
+
+        N, C = x.shape[0], self.num_pos_feats
+        P_e = x.view(N, -1, C)
+
+        P_e_prime = P_e.view(N, C, self.H // self.K, self.W // self.K)
+        P_e_double_prime = F.interpolate(P_e_prime, size=(self.h // self.K, self.w // self.K), mode='bilinear',
+                                        align_corners=False)
+        P_hat = P_e_double_prime.view(N, C, -1).permute(0, 2, 1)
+
+        return P_hat
+
+    def get_embed(self, coord, embed):
+        floor_coord = coord.floor()
+        delta = (coord - floor_coord).unsqueeze(-1)
+        floor_coord = floor_coord.long()
+        ceil_coord = (floor_coord + 1).clamp(max=49)
+        return embed(floor_coord) * (1 - delta) + embed(ceil_coord) * delta
+
 
 def build_position_encoding(cfg):
     N_steps = cfg['hidden_dim'] // 2
@@ -93,6 +122,8 @@ def build_position_encoding(cfg):
         position_embedding = PositionEmbeddingSine(N_steps, normalize=True)
     elif cfg['position_embedding'] in ('v3', 'learned'):
         position_embedding = PositionEmbeddingLearned(N_steps)
+    elif cfg['position_embedding'] == 'reshape':
+        position_embedding = PositionEmbeddingProcessed(N_steps)
     else:
         raise ValueError(f"not supported {cfg['position_embedding']}")
 
