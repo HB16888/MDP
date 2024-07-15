@@ -1,3 +1,4 @@
-[submodule "/data3/ipad_3d/MDP/lib/models/monodetr/stable-diffusion"]
-	path = /data3/ipad_3d/MDP/lib/models/monodetr/stable_diffusion
-	url = https://github.com/CompVis/stable-diffusion
+
+[submodule "lib/models/monodetr/stable_diffusion"]
+	path = lib/models/monodetr/stable_diffusion
+	url = https://github.com/CompVis/stable-diffusion.git

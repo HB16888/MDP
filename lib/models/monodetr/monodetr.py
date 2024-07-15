@@ -29,7 +29,7 @@ def _get_clones(module, N):
 class MonoDETR(nn.Module):
     """ This is the MonoDETR module that performs monocualr 3D object detection """
     def __init__(self, backbone, depthaware_transformer, depth_predictor, num_classes, num_queries, num_feature_levels,
-                 aux_loss=True, with_box_refine=False, two_stage=False, init_box=False, use_dab=False, group_num=11, two_stage_dino=False):
+                 aux_loss=True, with_box_refine=False, two_stage=False, init_box=False, use_dab=False, use_mdp=False, group_num=11, two_stage_dino=False):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
@@ -62,6 +62,7 @@ class MonoDETR(nn.Module):
         self.angle_embed = MLP(hidden_dim, hidden_dim, 24, 2)
         self.depth_embed = MLP(hidden_dim, hidden_dim, 2, 2)  # depth and deviation
         self.use_dab = use_dab
+        self.use_mdp=use_mdp
 
         # embed_dim = 192
         # channels_in = embed_dim * 8
@@ -160,17 +161,17 @@ class MonoDETR(nn.Module):
         """
         targets = prepare_targets(targets, images.shape[0])
 
-        # """
-        #  images: [batch_size, 3, H, W] where H is 384 and W is 1280
-        #  here we try to resize it to 512x512
-        # """
+        if self.use_mdp==False:
+            features, pos = self.backbone(images)
+        else:
+            # """
+            #  images: [batch_size, 3, H, W] where H is 384 and W is 1280
+            #  here we try to resize it to 512x512
+            # """
 
-        # images = resize_and_pad(images)
+            images = resize_and_pad(images)
 
-        # conv_feats = self.encoder(images)
-
-        features, pos = self.backbone(images)
-
+            conv_feats = self.backbone(images)
 
         srcs = []
         masks = []
@@ -587,6 +588,7 @@ def build(cfg):
         two_stage=cfg['two_stage'],
         init_box=cfg['init_box'],
         use_dab = cfg['use_dab'],
+        use_mdp=cfg.get("use_mdp", False),
         group_num=cfg['group_num'],
         two_stage_dino=cfg['two_stage_dino'])
 
