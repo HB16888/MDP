@@ -12,7 +12,6 @@ from timm.models.layers import trunc_normal_
 from inspect import isfunction
 import torch.nn.functional as F
 from .stable_diffusion.ldm.util import instantiate_from_config
-
 def exists(val):
     return val is not None
 
@@ -52,8 +51,8 @@ class VPDEncoder(nn.Module):
 
         ### stable diffusion layers
 
-        config = OmegaConf.load('./configs/v1-inference.yaml')
-        config.model.params.ckpt_path = './outputs/sd1/v1-5-pruned-emaonly.ckpt'
+        config = OmegaConf.load('configs/v1-inference.yaml')
+        config.model.params.ckpt_path = 'v1-5-pruned-emaonly.ckpt'
 
         sd_model = instantiate_from_config(config.model)
         self.encoder_vq = sd_model.first_stage_model
