@@ -14,7 +14,6 @@ import torch.nn.functional as F
 from ldm.util import instantiate_from_config
 from utils.misc import NestedTensor
 
-
 def exists(val):
     return val is not None
 
@@ -29,9 +28,22 @@ def default(val, d):
     return d() if isfunction(d) else d
 
 class VPDEncoder(nn.Module):
-    def __init__(self, out_dim=1024, ldm_prior=[320, 640, 1280 + 1280], sd_path=None, text_dim=768,
-                 ):
+    def __init__(self, 
+                 out_dim=1024, 
+                 ldm_prior=[320, 640, 1280 + 1280], 
+                 sd_path=None, 
+                 text_dim=768,
+                 train_backbone=False, 
+                 return_interm_layers=True):
         super().__init__()
+        if return_interm_layers:
+            return_layers = {"layer2": "0", "layer3": "1", "layer4": "2"}
+            self.strides = [8, 16, 32]
+            self.num_channels = [512, 1024, 2048]
+        else:
+            return_layers = {'layer4': "0"}
+            self.strides = [32]
+            self.num_channels = [2048]
         self.postion_embedding = PositionEmbeddingSine()
         self.layer1 = nn.Sequential(
             nn.Conv2d(ldm_prior[0], ldm_prior[0], 3, stride=2, padding=1),

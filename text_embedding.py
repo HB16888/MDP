@@ -37,7 +37,7 @@ class FrozenCLIPEmbedder(nn.Module):
 
 def main():
     # 定义你需要的句子
-    fixed_sentence = "a photo shows city road with a cars on the road. Trees and buildings are visible on both sides of the road."
+    fixed_sentence = "A photo shows cars on city road."
 
 
     text_encoder = FrozenCLIPEmbedder(max_length=20)

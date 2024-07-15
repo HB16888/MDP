@@ -35,11 +35,11 @@ model:
   return_intermediate_dec: True
   device: 'cuda'
 
-  # Backbone
+  #Backbone
   backbone: 'resnet50'
   train_backbone: True
   num_feature_levels: 4
-  dilation: False
+  # dilation: False
   position_embedding: 'sine'  # 'sine' or 'learned'
   masks: False
 
