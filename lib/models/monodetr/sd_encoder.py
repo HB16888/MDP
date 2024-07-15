@@ -26,7 +26,7 @@ def default(val, d):
         return val
     return d() if isfunction(d) else d
 
-class VPDDepthEncoder(nn.Module):
+class VPDEncoder(nn.Module):
     def __init__(self, out_dim=1024, ldm_prior=[320, 640, 1280 + 1280], sd_path=None, text_dim=768,
                  ):
         super().__init__()

@@ -23,6 +23,7 @@ from utils.misc import NestedTensor, is_main_process
 
 from .position_encoding import build_position_encoding
 
+from .sd_encoder import VPDEncoder
 
 class FrozenBatchNorm2d(torch.nn.Module):
     """
@@ -127,9 +128,11 @@ class Joiner(nn.Sequential):
 
 
 def build_backbone(cfg):
-    
-    position_embedding = build_position_encoding(cfg)
-    return_interm_layers = cfg['masks'] or cfg['num_feature_levels'] > 1
-    backbone = Backbone(cfg['backbone'], cfg['train_backbone'], return_interm_layers, cfg['dilation'])
-    model = Joiner(backbone, position_embedding)
+    if cfg.get("use_mdp", False):
+        model=VPDEncoder(out_dim=cfg["VPDEncoder"].get("out_dim",1024))
+    else:
+        position_embedding = build_position_encoding(cfg)
+        return_interm_layers = cfg['masks'] or cfg['num_feature_levels'] > 1
+        backbone = Backbone(cfg['backbone'], cfg['train_backbone'], return_interm_layers, cfg['dilation'])
+        model = Joiner(backbone, position_embedding)
     return model
