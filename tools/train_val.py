@@ -48,7 +48,7 @@ def main():
     sys.stdout = open(os.path.join(output_path, f'{model_name}.log'), 'w')
 
     # build dataloader
-    train_loader, test_loader = build_dataloader(cfg['dataset'],workers=cfg['dataset']['dataloader']['num_workers'])
+    train_loader, test_loader = build_dataloader(cfg['dataset'], workers=cfg['dataset']['dataloader']['num_workers'])
 
     # build model
     model, loss = build_model(cfg['model'])

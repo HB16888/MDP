@@ -52,8 +52,8 @@ class VPDDepthEncoder(nn.Module):
 
         ### stable diffusion layers
 
-        config = OmegaConf.load('../v1-inference.yaml')
-        config.model.params.ckpt_path = '../outputs/sd1/v1-5-pruned-emaonly.ckpt'
+        config = OmegaConf.load('./configs/v1-inference.yaml')
+        config.model.params.ckpt_path = './outputs/sd1/v1-5-pruned-emaonly.ckpt'
 
         sd_model = instantiate_from_config(config.model)
         self.encoder_vq = sd_model.first_stage_model
