@@ -5,7 +5,7 @@ from transformers import CLIPTextModel
 
 class FrozenCLIPEmbedder(nn.Module):
     """Uses the CLIP transformer encoder for text (from Hugging Face)"""
-    def __init__(self, version="openai/clip-vit-large-patch14", device="cuda", max_length=77, pool=True):
+    def __init__(self, version="/data3/ipad_3d/HuggingFace-Download-Accelerator/models--openai--clip-vit-large-patch14", device="cuda", max_length=77, pool=True):
         super().__init__()
         self.tokenizer = CLIPTokenizer.from_pretrained(version)
         self.transformer = CLIPTextModel.from_pretrained(version)
