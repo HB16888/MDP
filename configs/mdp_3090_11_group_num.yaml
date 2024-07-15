@@ -36,12 +36,12 @@ model:
   device: 'cuda'
 
   # Backbone
-  # backbone: 'resnet50'
-  # train_backbone: True
-  # num_feature_levels: 4
-  # dilation: False
-  # position_embedding: 'sine'  # 'sine' or 'learned'
-  # masks: False
+  backbone: 'resnet50'
+  train_backbone: True
+  num_feature_levels: 4
+  dilation: False
+  position_embedding: 'sine'  # 'sine' or 'learned'
+  masks: False
 
   # MDP
   use_mdp: True

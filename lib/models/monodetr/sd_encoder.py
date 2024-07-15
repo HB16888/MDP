@@ -28,8 +28,7 @@ def default(val, d):
         return val
     return d() if isfunction(d) else d
 
-
-class VPDDepthEncoder(nn.Module):
+class VPDEncoder(nn.Module):
     def __init__(self, out_dim=1024, ldm_prior=[320, 640, 1280 + 1280], sd_path=None, text_dim=768,
                  ):
         super().__init__()
@@ -55,8 +54,8 @@ class VPDDepthEncoder(nn.Module):
 
         ### stable diffusion layers
 
-        config = OmegaConf.load('./configs/v1-inference.yaml')
-        config.model.params.ckpt_path = './outputs/sd1/v1-5-pruned-emaonly.ckpt'
+        config = OmegaConf.load('configs/v1_inference.yaml')
+        config.model.params.ckpt_path = 'v1-5-pruned-emaonly.ckpt'
 
         sd_model = instantiate_from_config(config.model)
         self.encoder_vq = sd_model.first_stage_model

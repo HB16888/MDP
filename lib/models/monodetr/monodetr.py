@@ -20,7 +20,6 @@ from .depth_predictor.ddn_loss import DDNLoss
 from lib.losses.focal_loss import sigmoid_focal_loss
 from .dn_components import prepare_for_dn, dn_post_process, compute_dn_loss
 from ...helpers.trainer_helper import prepare_targets
-from .sd_encoder import VPDDepthEncoder
 from torchvision import transforms
 
 def _get_clones(module, N):
@@ -30,7 +29,7 @@ def _get_clones(module, N):
 class MonoDETR(nn.Module):
     """ This is the MonoDETR module that performs monocualr 3D object detection """
     def __init__(self, backbone, depthaware_transformer, depth_predictor, num_classes, num_queries, num_feature_levels,
-                 aux_loss=True, with_box_refine=False, two_stage=False, init_box=False, use_dab=False, group_num=11, two_stage_dino=False):
+                 aux_loss=True, with_box_refine=False, two_stage=False, init_box=False, use_dab=False, use_mdp=False, group_num=11, two_stage_dino=False):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
@@ -63,11 +62,12 @@ class MonoDETR(nn.Module):
         self.angle_embed = MLP(hidden_dim, hidden_dim, 24, 2)
         self.depth_embed = MLP(hidden_dim, hidden_dim, 2, 2)  # depth and deviation
         self.use_dab = use_dab
+        self.use_mdp=use_mdp
 
-        embed_dim = 192
-        channels_in = embed_dim * 8
+        # embed_dim = 192
+        # channels_in = embed_dim * 8
 
-        self.encoder = VPDDepthEncoder(out_dim=channels_in)
+        # self.encoder = VPDDepthEncoder(out_dim=channels_in)
 
         if init_box == True:
             nn.init.constant_(self.bbox_embed.layers[-1].weight.data, 0)
@@ -161,14 +161,17 @@ class MonoDETR(nn.Module):
         """
         targets = prepare_targets(targets, images.shape[0])
 
-        """
-         images: [batch_size, 3, H, W] where H is 384 and W is 1280
-         here we try to resize it to 512x512
-        """
+        if self.use_mdp==False:
+            features, pos = self.backbone(images)
+        else:
+            # """
+            #  images: [batch_size, 3, H, W] where H is 384 and W is 1280
+            #  here we try to resize it to 512x512
+            # """
 
-        resized_images = resize_and_pad(images)
+            resized_images = resize_and_pad(images)
 
-        features, pos = self.encoder(resized_images)
+            features, pos = self.backbone(resized_images)
 
         # features, pos = self.backbone(images)
 
@@ -588,6 +591,7 @@ def build(cfg):
         two_stage=cfg['two_stage'],
         init_box=cfg['init_box'],
         use_dab = cfg['use_dab'],
+        use_mdp=cfg.get("use_mdp", False),
         group_num=cfg['group_num'],
         two_stage_dino=cfg['two_stage_dino'])
 
