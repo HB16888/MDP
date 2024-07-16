@@ -13,6 +13,7 @@ from inspect import isfunction
 import torch.nn.functional as F
 from ldm.util import instantiate_from_config
 from utils.misc import NestedTensor
+from typing import Dict, List
 
 def exists(val):
     return val is not None
@@ -40,14 +41,11 @@ class VPDEncoder(nn.Module):
                  sd_checkpoint_path=None):
         super().__init__()
         if return_interm_layers:
-            return_layers = {"layer2": "0", "layer3": "1", "layer4": "2"}
             self.strides = [8, 16, 32]
-            self.num_channels = [512, 1024, 2048]
+            self.num_channels = [320, 640, 2560]
         else:
-            return_layers = {'layer4': "0"}
             self.strides = [32]
-            self.num_channels = [2048]
-        self.postion_embedding = PositionEmbeddingSine()
+            self.num_channels = [2560]
         self.layer1 = nn.Sequential(
             nn.Conv2d(ldm_prior[0], ldm_prior[0], 3, stride=2, padding=1),
             nn.GroupNorm(16, ldm_prior[0]),
@@ -117,14 +115,14 @@ class VPDEncoder(nn.Module):
         feats = [outs[0], outs[1], torch.cat([outs[2], F.interpolate(outs[3], scale_factor=2)], dim=1)]
         feats_upsampled = [F.interpolate(feat, scale_factor=2) for feat in feats]
         feats_original = [feat[:,:,feat.shape[2]//2-int(round(feat.shape[3]*384/1280/2)):feat.shape[2]//2+int(round(feat.shape[3]*384/1280/2)),:] for feat in feats_upsampled]
+        out = {}
+        for name, x in enumerate(feats_original):
+            m = torch.zeros(x.shape[0], x.shape[2], x.shape[3]).to(torch.bool).to(x.device)
+            out[f"{name}"] = NestedTensor(x, m)
         #8 48*160 16 24*80 32 12*40
-        pos = []
-        for x in feats:
-            pos.append(self.postion_embedding(x))
         # x = torch.cat([self.layer1(feats[0]), self.layer2(feats[1]), feats[2]], dim=1)
         # out = self.out_layer(x)
-
-        return feats, pos
+        return out
 
 
 class UNetWrapper(nn.Module):
@@ -371,42 +369,3 @@ def register_attention_control(model, controller):
             cross_att_count += register_recr(net[1], 0, "mid")
 
     controller.num_att_layers = cross_att_count
-
-
-class PositionEmbeddingSine(nn.Module):
-    """
-    This is a more standard version of the position embedding, very similar to the one
-    used by the Attention is all you need paper, generalized to work on images.
-    """
-    def __init__(self, num_pos_feats=64, temperature=10000, normalize=False, scale=None):
-        super().__init__()
-        self.num_pos_feats = num_pos_feats
-        self.temperature = temperature
-        self.normalize = normalize
-        if scale is not None and normalize is False:
-            raise ValueError("normalize should be True if scale is passed")
-        if scale is None:
-            scale = 2 * math.pi
-        self.scale = scale
-
-    def forward(self, tensor_list: NestedTensor):
-        x = tensor_list.tensors
-        mask = tensor_list.mask
-        assert mask is not None
-        not_mask = ~mask
-        y_embed = not_mask.cumsum(1, dtype=torch.float32)
-        x_embed = not_mask.cumsum(2, dtype=torch.float32)
-        if self.normalize:
-            eps = 1e-6
-            y_embed = y_embed / (y_embed[:, -1:, :] + eps) * self.scale
-            x_embed = x_embed / (x_embed[:, :, -1:] + eps) * self.scale
-
-        dim_t = torch.arange(self.num_pos_feats, dtype=torch.float32, device=x.device)
-        dim_t = self.temperature ** (2 * (dim_t // 2) / self.num_pos_feats)
-
-        pos_x = x_embed[:, :, :, None] / dim_t
-        pos_y = y_embed[:, :, :, None] / dim_t
-        pos_x = torch.stack((pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4).flatten(3)
-        pos_y = torch.stack((pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4).flatten(3)
-        pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
-        return pos

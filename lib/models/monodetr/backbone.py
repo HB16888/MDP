@@ -129,13 +129,16 @@ class Joiner(nn.Sequential):
 
 def build_backbone(cfg):
     if cfg.get("use_mdp", False):
+        position_embedding = build_position_encoding(cfg)
         return_interm_layers = cfg['masks'] or cfg['num_feature_levels'] > 1
-        model=VPDEncoder(out_dim=cfg["VPDEncoder"].get("out_dim",1024),
+        backbone = VPDEncoder(out_dim=cfg["VPDEncoder"].get("out_dim",1024),
                          train_backbone=cfg["train_backbone"],
                          return_interm_layers=return_interm_layers,
                          class_embeddings_path=cfg["VPDEncoder"].get("class_embeddings_path",None),
                          sd_config_path=cfg["VPDEncoder"].get("sd_config_path",None),
-                         sd_checkpoint_path=cfg["VPDEncoder"].get("sd_checkpoint_path",None))
+                         sd_checkpoint_path=cfg["VPDEncoder"].get("sd_checkpoint_path",None)
+                         )
+        model = Joiner(backbone, position_embedding)
     else:
         position_embedding = build_position_encoding(cfg)
         return_interm_layers = cfg['masks'] or cfg['num_feature_levels'] > 1
