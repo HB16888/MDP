@@ -169,7 +169,7 @@ class MonoDETR(nn.Module):
             #  here we try to resize it to 512x512
             # """
 
-            resized_images = resize_and_pad(images)
+            resized_images = resize_and_pad(images,target_height = 640, target_width = 640)
             features, pos = self.backbone(resized_images)
 
         # features, pos = self.backbone(images)
@@ -637,7 +637,7 @@ def build(cfg):
     
     return model, criterion
 
-def resize_and_pad(images):
+def resize_and_pad(images,target_height = 512, target_width = 512):
     """
     Resize and pad images to 512x512
     Args:
@@ -646,10 +646,6 @@ def resize_and_pad(images):
         Tensor of shape [batch_size, 3, 512, 512]
     """
     batch_size, channels, original_height, original_width = images.shape
-
-    # Define the target height and width
-    target_height = 512
-    target_width = 512
 
     # Compute the scale factor for resizing
     scale_factor = min(target_height / original_height, target_width / original_width)

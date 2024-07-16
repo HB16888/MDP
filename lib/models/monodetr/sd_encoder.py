@@ -115,6 +115,7 @@ class VPDEncoder(nn.Module):
         # import pdb; pdb.set_trace()
         outs = self.unet(latents, t, c_crossattn=[c_crossattn])
         feats = [outs[0], outs[1], torch.cat([outs[2], F.interpolate(outs[3], scale_factor=2)], dim=1)]
+        #8 48*160 16 24*80 32 12*40
         pos = []
         for x in feats:
             pos.append(self.postion_embedding(x))
