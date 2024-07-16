@@ -34,7 +34,10 @@ class VPDEncoder(nn.Module):
                  sd_path=None, 
                  text_dim=768,
                  train_backbone=False, 
-                 return_interm_layers=True):
+                 return_interm_layers=True,
+                 class_embeddings_path=None,
+                 sd_config_path=None,
+                 sd_checkpoint_path=None):
         super().__init__()
         if return_interm_layers:
             return_layers = {"layer2": "0", "layer3": "1", "layer4": "2"}
@@ -66,8 +69,8 @@ class VPDEncoder(nn.Module):
 
         ### stable diffusion layers
 
-        config = OmegaConf.load('configs/v1_inference.yaml')
-        config.model.params.ckpt_path = 'v1-5-pruned-emaonly.ckpt'
+        config = OmegaConf.load(sd_config_path)
+        config.model.params.ckpt_path = sd_checkpoint_path
 
         sd_model = instantiate_from_config(config.model)
         self.encoder_vq = sd_model.first_stage_model
@@ -82,7 +85,7 @@ class VPDEncoder(nn.Module):
             param.requires_grad = False
 
         self.text_adapter = TextAdapterDepth(text_dim=text_dim)
-        self.class_embeddings = torch.load('./kitti_embeddings.pth')
+        self.class_embeddings = torch.load(class_embeddings_path)
         self.gamma = nn.Parameter(torch.ones(text_dim) * 1e-4)
 
     def _init_weights(self, m):
