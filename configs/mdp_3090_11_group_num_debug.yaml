@@ -37,7 +37,7 @@ model:
 
   #Backbone
   backbone: 'resnet50'
-  train_backbone: True
+  train_backbone: False
   num_feature_levels: 4
   # dilation: False
   position_embedding: 'sine'  # 'sine' or 'learned'
