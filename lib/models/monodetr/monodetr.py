@@ -170,7 +170,6 @@ class MonoDETR(nn.Module):
             # """
 
             resized_images = resize_and_pad(images)
-
             features, pos = self.backbone(resized_images)
 
         # features, pos = self.backbone(images)

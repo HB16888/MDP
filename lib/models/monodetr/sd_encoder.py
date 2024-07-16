@@ -110,6 +110,7 @@ class VPDEncoder(nn.Module):
 
         c_crossattn = self.text_adapter(latents, class_embeddings,
                                         self.gamma)  # NOTE: here the c_crossattn should be expand_dim as latents
+        c_crossattn = c_crossattn.repeat(x.shape[0], 1, 1)
         t = torch.ones((x.shape[0],), device=x.device).long()
         # import pdb; pdb.set_trace()
         outs = self.unet(latents, t, c_crossattn=[c_crossattn])
