@@ -46,6 +46,7 @@ class VPDEncoder(nn.Module):
         else:
             self.strides = [32]
             self.num_channels = [2560]
+        self.train_backbone = train_backbone
         self.layer1 = nn.Sequential(
             nn.Conv2d(ldm_prior[0], ldm_prior[0], 3, stride=2, padding=1),
             nn.GroupNorm(16, ldm_prior[0]),
@@ -111,7 +112,11 @@ class VPDEncoder(nn.Module):
         c_crossattn = c_crossattn.repeat(x.shape[0], 1, 1)
         t = torch.ones((x.shape[0],), device=x.device).long()
         # import pdb; pdb.set_trace()
-        outs = self.unet(latents, t, c_crossattn=[c_crossattn])
+        if self.train_backbone:
+            outs = self.unet(latents, t, c_crossattn=[c_crossattn])
+        else:
+            with torch.no_grad():
+                outs = self.unet(latents, t, c_crossattn=[c_crossattn])
         feats = [outs[0], outs[1], torch.cat([outs[2], F.interpolate(outs[3], scale_factor=2)], dim=1)]
         feats_upsampled = [F.interpolate(feat, scale_factor=2) for feat in feats]
         feats_original = [feat[:,:,feat.shape[2]//2-int(round(feat.shape[3]*384/1280/2)):feat.shape[2]//2+int(round(feat.shape[3]*384/1280/2)),:] for feat in feats_upsampled]
