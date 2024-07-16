@@ -656,8 +656,8 @@ def resize_and_pad(images):
     scale_factor = min(target_height / original_height, target_width / original_width)
 
     # Calculate new dimensions
-    new_height = int(original_height * scale_factor)
-    new_width = int(original_width * scale_factor)
+    new_height = int(round(original_height * scale_factor))
+    new_width = int(round(original_width * scale_factor))
 
     # Resize the images
     resize_transform = transforms.Resize((new_height, new_width))
