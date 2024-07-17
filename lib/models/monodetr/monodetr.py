@@ -164,16 +164,8 @@ class MonoDETR(nn.Module):
         if self.use_mdp==False:
             features, pos = self.backbone(images)
         else:
-            # """
-            #  images: [batch_size, 3, H, W] where H is 384 and W is 1280
-            #  here we try to resize it to 512x512
-            # """
-
-            #resized_images = resize_and_pad(images,target_height = 640, target_width = 640)
+            images=images*2-1
             features, pos = self.backbone(images)
-
-        # features, pos = self.backbone(images)
-
 
         srcs = []
         masks = []
