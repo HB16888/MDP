@@ -118,10 +118,10 @@ class VPDEncoder(nn.Module):
             with torch.no_grad():
                 outs = self.unet(latents, t, c_crossattn=[c_crossattn])
         feats = [outs[0], outs[1], torch.cat([outs[2], F.interpolate(outs[3], scale_factor=2)], dim=1)]
-        feats_upsampled = [F.interpolate(feat, scale_factor=2) for feat in feats]
-        feats_original = [feat[:,:,feat.shape[2]//2-int(round(feat.shape[3]*384/1280/2)):feat.shape[2]//2+int(round(feat.shape[3]*384/1280/2)),:] for feat in feats_upsampled]
+        # feats_upsampled = [F.interpolate(feat, scale_factor=2) for feat in feats]
+        # feats_original = [feat[:,:,feat.shape[2]//2-int(round(feat.shape[3]*384/1280/2)):feat.shape[2]//2+int(round(feat.shape[3]*384/1280/2)),:] for feat in feats_upsampled]
         out = {}
-        for name, x in enumerate(feats_original):
+        for name, x in enumerate(feats):
             m = torch.zeros(x.shape[0], x.shape[2], x.shape[3]).to(torch.bool).to(x.device)
             out[f"{name}"] = NestedTensor(x, m)
         #8 48*160 16 24*80 32 12*40

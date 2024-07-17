@@ -169,8 +169,8 @@ class MonoDETR(nn.Module):
             #  here we try to resize it to 512x512
             # """
 
-            resized_images = resize_and_pad(images,target_height = 640, target_width = 640)
-            features, pos = self.backbone(resized_images)
+            #resized_images = resize_and_pad(images,target_height = 640, target_width = 640)
+            features, pos = self.backbone(images)
 
         # features, pos = self.backbone(images)
 
