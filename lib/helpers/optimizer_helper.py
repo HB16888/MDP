@@ -5,15 +5,21 @@ from torch.optim.optimizer import Optimizer
 
 
 def build_optimizer(cfg_optimizer, model):
-    weights, biases = [], []
+    weights, biases ,unet_biases,unet_weights= [], [],[],[]
     for name, param in model.named_parameters():
-        if 'bias' in name:
+        if 'bias' in name and "unet" not in name:
             biases += [param]
-        else:
+        elif 'bias' not in name and "unet" not in name:
             weights += [param]
+        elif 'bias' in name and "unet" in name:
+            unet_biases += [param]
+        else:
+            unet_weights += [param]
 
     parameters = [{'params': biases, 'weight_decay': 0},
-                  {'params': weights, 'weight_decay': cfg_optimizer['weight_decay']}]
+                  {'params': weights, 'weight_decay': cfg_optimizer['weight_decay']},
+                  {'params': unet_biases, 'weight_decay': 0,"lr":cfg_optimizer['lr']/10},
+                  {'params': unet_weights, 'weight_decay': cfg_optimizer['weight_decay'],"lr":cfg_optimizer['lr']/10}]
 
     if cfg_optimizer['type'] == 'sgd':
         optimizer = optim.SGD(parameters, lr=cfg_optimizer['lr'], momentum=0.9)
