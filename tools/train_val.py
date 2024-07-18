@@ -46,7 +46,9 @@ def main():
     logger = create_logger(log_file)
 
     sys.stdout = open(os.path.join(output_path, f'{model_name}.log'), 'w')
-
+    
+    cfg["dataset"]["use_mdp"]= cfg["model"]["use_mdp"]
+    
     # build dataloader
     train_loader, test_loader = build_dataloader(cfg['dataset'], workers=cfg['dataset']['dataloader']['num_workers'])
 

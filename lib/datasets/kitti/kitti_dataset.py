@@ -21,7 +21,7 @@ from .pd import PhotometricDistort
 
 class KITTI_Dataset(data.Dataset):
     def __init__(self, split, cfg):
-
+        
         # basic configuration
         self.root_dir = cfg.get('root_dir')
         self.split = split
@@ -38,6 +38,7 @@ class KITTI_Dataset(data.Dataset):
         self.meanshape = cfg.get('meanshape', False)
         self.class_merging = cfg.get('class_merging', False)
         self.use_dontcare = cfg.get('use_dontcare', False)
+        self.use_mdp = cfg.get('use_mdp', False)
 
         if self.class_merging:
             self.writelist.extend(['Van', 'Truck'])
@@ -159,7 +160,8 @@ class KITTI_Dataset(data.Dataset):
 
         # image encoding
         img = np.array(img).astype(np.float32) / 255.0
-        img = (img - self.mean) / self.std
+        if self.use_mdp==False:
+            img = (img - self.mean) / self.std
         img = img.transpose(2, 0, 1)  # C * H * W
 
         info = {'img_id': index,
