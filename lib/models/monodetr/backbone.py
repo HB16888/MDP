@@ -136,7 +136,8 @@ def build_backbone(cfg):
                          return_interm_layers=return_interm_layers,
                          class_embeddings_path=cfg["VPDEncoder"].get("class_embeddings_path",None),
                          sd_config_path=cfg["VPDEncoder"].get("sd_config_path",None),
-                         sd_checkpoint_path=cfg["VPDEncoder"].get("sd_checkpoint_path",None)
+                         sd_checkpoint_path=cfg["VPDEncoder"].get("sd_checkpoint_path",None),
+                         use_attn=cfg["VPDEncoder"].get("use_attn",False)
                          )
         model = Joiner(backbone, position_embedding)
     else:
