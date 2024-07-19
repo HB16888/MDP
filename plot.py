@@ -49,6 +49,8 @@ def extract(log_file):
 		for line in f:
 			if ',' not in line:
 				continue
+			if "["  in line or "]" in line:
+				continue
 			items = line.split(',')
 			for item in items:
 				if ':' not in item:
@@ -88,7 +90,7 @@ def plot_losses(losses, output_dir):
 		plt.close()
 
 if __name__ == "__main__":
-	log_dir = "/data3/ipad_3d/MDP/outputs/monodetr_20240715_161833"
+	log_dir = "/mnt/nodestor/MDP/outputs/monodetr_20240719_101620"
 	timestamp = log_dir.split('_')[-2] + '_' + log_dir.split('_')[-1]
 	log_file = os.path.join(log_dir, f"train.log.{timestamp}")
 	out_dir = os.path.join(log_dir, 'AP_Plots')  # 输出目录
