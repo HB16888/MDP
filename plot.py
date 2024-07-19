@@ -40,6 +40,13 @@ def plot_metric(values, metric_name, output_file):
 	plt.ylabel(metric_name)
 	plt.legend()
 	plt.grid(True)
+	# 设置纵轴范围
+	if metric_name in ['bbox AP', 'aos AP']:
+		plt.ylim(0, 100)
+	elif metric_name in ['bev AP']:
+		plt.ylim(0, 50)
+	else:
+		plt.ylim(0, 30)
 	plt.savefig(output_file)
 
 def extract(log_file):
@@ -90,7 +97,7 @@ def plot_losses(losses, output_dir):
 		plt.close()
 
 if __name__ == "__main__":
-	log_dir = "/mnt/nodestor/MDP/outputs/monodetr_20240719_101620"
+	log_dir = "/mnt/nodestor/MDP/outputs/monodetr_20240719_000313"
 	timestamp = log_dir.split('_')[-2] + '_' + log_dir.split('_')[-1]
 	log_file = os.path.join(log_dir, f"train.log.{timestamp}")
 	out_dir = os.path.join(log_dir, 'AP_Plots')  # 输出目录
