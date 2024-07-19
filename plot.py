@@ -97,17 +97,17 @@ def plot_losses(losses, output_dir):
 		plt.close()
 
 if __name__ == "__main__":
-	log_dir = "/mnt/nodestor/MDP/outputs/monodetr_20240719_000313"
+	log_dir = "/mnt/nodestor/MDP/outputs/monodetr_20240719_101620"
 	timestamp = log_dir.split('_')[-2] + '_' + log_dir.split('_')[-1]
 	log_file = os.path.join(log_dir, f"train.log.{timestamp}")
 	out_dir = os.path.join(log_dir, 'AP_Plots')  # 输出目录
 	if not os.path.exists(out_dir):
 		os.makedirs(out_dir)
 	bbox_ap_values, bev_ap_values, d3_ap_values, aos_ap_values = extract_car_ap_r40(log_file)
-	bbox_ap_values = bbox_ap_values[:-1]
-	bev_ap_values = bev_ap_values[:-1]
-	d3_ap_values = d3_ap_values[:-1]
-	aos_ap_values = aos_ap_values[:-1]
+	# bbox_ap_values = bbox_ap_values[:-1]
+	# bev_ap_values = bev_ap_values[:-1]
+	# d3_ap_values = d3_ap_values[:-1]
+	# aos_ap_values = aos_ap_values[:-1]
 	plot_metric(bbox_ap_values, 'bbox AP', os.path.join(out_dir, 'bbox_ap_curve.png'))
 	plot_metric(bev_ap_values, 'bev AP', os.path.join(out_dir, 'bev_ap_curve.png'))
 	plot_metric(d3_ap_values, '3d AP', os.path.join(out_dir, '3d_ap_curve.png'))
