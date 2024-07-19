@@ -38,11 +38,16 @@ class VPDEncoder(nn.Module):
                  return_interm_layers=True,
                  class_embeddings_path=None,
                  sd_config_path=None,
-                 sd_checkpoint_path=None):
+                 sd_checkpoint_path=None,
+                 use_attn=False):
         super().__init__()
         if return_interm_layers:
-            self.strides = [8, 16, 32]
-            self.num_channels = [320, 640, 2560]
+            if use_attn==False:
+                self.strides = [8, 16, 32]
+                self.num_channels = [320, 640, 2560]
+            else:
+                self.strides = [8, 16, 32]
+                self.num_channels = [320, 641, 2561]
         else:
             self.strides = [32]
             self.num_channels = [2560]
@@ -74,7 +79,7 @@ class VPDEncoder(nn.Module):
         sd_model = instantiate_from_config(config.model)
         self.encoder_vq = sd_model.first_stage_model
 
-        self.unet = UNetWrapper(sd_model.model, use_attn=False)
+        self.unet = UNetWrapper(sd_model.model, use_attn=use_attn)
 
         del sd_model.cond_stage_model
         del self.encoder_vq.decoder
@@ -131,7 +136,7 @@ class VPDEncoder(nn.Module):
 
 
 class UNetWrapper(nn.Module):
-    def __init__(self, unet, use_attn=True, base_size=512, max_attn_size=None,
+    def __init__(self, unet, use_attn=True, base_size=1280, max_attn_size=None,
                  attn_selector='up_cross+down_cross') -> None:
         super().__init__()
         self.unet = unet
@@ -162,8 +167,8 @@ class UNetWrapper(nn.Module):
         attns = {self.size16: [], self.size32: [], self.size64: []}
         for k in self.attn_selector:
             for up_attn in avg_attn[k]:
-                size = int(math.sqrt(up_attn.shape[1]))
-                attns[size].append(rearrange(up_attn, 'b (h w) c -> b c h w', h=size))
+                size = int(round(math.sqrt(up_attn.shape[1]*1280/384)))
+                attns[size].append(rearrange(up_attn, 'b (h w) c -> b c h w', w=size))
         attn16 = torch.stack(attns[self.size16]).mean(0)
         attn32 = torch.stack(attns[self.size32]).mean(0)
         if len(attns[self.size64]) > 0:
