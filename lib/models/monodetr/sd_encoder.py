@@ -109,8 +109,9 @@ class VPDEncoder(nn.Module):
     def forward(self, x, class_ids=None):
         with torch.no_grad():
             latents = self.encoder_vq.encode(x).mode().detach()
-
-        class_embeddings = self.class_embeddings
+        class_embeddings=[]
+        for class_embedding in self.class_embeddings:
+            class_embeddings.append(class_embedding.to(latents.device))
 
         c_crossattn = self.text_adapter(latents, class_embeddings,
                                         self.gamma)  # NOTE: here the c_crossattn should be expand_dim as latents
@@ -190,6 +191,7 @@ class TextAdapterDepth(nn.Module):
 
     def forward(self, latents, texts, gamma):
         # use the gamma to blend
+        gamma = gamma.to(latents.device)
         texts = texts[0].unsqueeze(0)
         n_sen, channel = texts.shape
         bs = latents.shape[0]

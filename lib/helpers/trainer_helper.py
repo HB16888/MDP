@@ -36,7 +36,7 @@ class Trainer(object):
         self.epoch = 0
         self.best_result = 0
         self.best_epoch = 0
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.detr_loss = loss
         self.model_name = model_name
         self.output_dir = output_path
