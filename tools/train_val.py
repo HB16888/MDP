@@ -106,19 +106,20 @@ def main():
                     output_path=output_path)
     if cfg['dataset']['test_split'] != 'test':
         trainer.tester = tester
-
-    logger.info('###################  Training  ##################')
-    logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
-    logger.info('Learning Rate: %f' % (cfg['optimizer']['lr']))
+    if accelerator.is_local_main_process:
+        logger.info('###################  Training  ##################')
+        logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
+        logger.info('Learning Rate: %f' % (cfg['optimizer']['lr']))
 
     trainer.train()
 
     if cfg['dataset']['test_split'] == 'test':
         return
 
-    logger.info('###################  Testing  ##################')
-    logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
-    logger.info('Split: %s' % (cfg['dataset']['test_split']))
+    if accelerator.is_local_main_process:
+        logger.info('###################  Testing  ##################')
+        logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
+        logger.info('Split: %s' % (cfg['dataset']['test_split']))
 
     tester.test()
 
