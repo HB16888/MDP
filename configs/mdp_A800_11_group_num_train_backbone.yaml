@@ -102,7 +102,7 @@ model:
 
 optimizer:
   type: 'adamw'
-  lr: 0.000075
+  lr: 0.0003
   weight_decay: 0.0001
 
 
