@@ -23,6 +23,7 @@ from lib.helpers.tester_helper import Tester
 from lib.helpers.utils_helper import create_logger
 from lib.helpers.utils_helper import set_random_seed
 
+from accelerate import Accelerator, DistributedDataParallelKwargs
 
 parser = argparse.ArgumentParser(description='Depth-aware Transformer for Monocular 3D Object Detection')
 parser.add_argument('--config', dest='config', help='settings of detection in yaml format')
@@ -54,15 +55,18 @@ def main():
 
     # build model
     model, loss = build_model(cfg['model'])
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    gpu_ids = list(map(int, cfg['trainer']['gpu_ids'].split(',')))
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # gpu_ids = list(map(int, cfg['trainer']['gpu_ids'].split(',')))
 
-    if len(gpu_ids) == 1:
-        model = model.to(device)
-    else:
-        model = torch.nn.DataParallel(model, device_ids=gpu_ids).to(device)
-        loss = torch.nn.DataParallel(loss, device_ids=gpu_ids).to(device)
-
+    # if len(gpu_ids) == 1:
+    #     model = model.to(device)
+    # else:
+    #     model = torch.nn.DataParallel(model, device_ids=gpu_ids).to(device)
+    #     loss = torch.nn.DataParallel(loss, device_ids=gpu_ids).to(device)
+    accelerator = Accelerator(kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)])
+    # device = accelerator.device
+    #model = model.to(device)
+    
     if args.evaluate_only:
         logger.info('###################  Evaluation Only  ##################')
         tester = Tester(cfg=cfg['tester'],
@@ -79,7 +83,7 @@ def main():
     optimizer = build_optimizer(cfg['optimizer'], model)
     # build lr scheduler
     lr_scheduler, warmup_lr_scheduler = build_lr_scheduler(cfg['lr_scheduler'], optimizer, last_epoch=-1)
-
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
     trainer = Trainer(cfg=cfg['trainer'],
                       model=model,
                       optimizer=optimizer,
@@ -90,7 +94,8 @@ def main():
                       logger=logger,
                       loss=loss,
                       model_name=model_name,
-                      output_path=output_path)
+                      output_path=output_path,
+                      accelerator=accelerator)
 
     tester = Tester(cfg=cfg['tester'],
                     model=trainer.model,

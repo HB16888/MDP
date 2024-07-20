@@ -24,7 +24,8 @@ class Trainer(object):
                  logger,
                  loss,
                  model_name,
-                 output_path):
+                 output_path,
+                 accelerator=None):
         self.cfg = cfg
         self.model = model
         self.optimizer = optimizer
@@ -36,11 +37,12 @@ class Trainer(object):
         self.epoch = 0
         self.best_result = 0
         self.best_epoch = 0
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        #self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.detr_loss = loss
         self.model_name = model_name
         self.output_dir = output_path
         self.tester = None
+        self.accelerator = accelerator
 
         # loading pretrain/resume model
         if cfg.get('pretrain_model'):
@@ -121,10 +123,10 @@ class Trainer(object):
 
         progress_bar = tqdm.tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters')
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
-            inputs = inputs.to(self.device)
-            calibs = calibs.to(self.device)
-            for key in targets.keys():
-                targets[key] = targets[key].to(self.device)
+            # inputs = inputs.to(self.device)
+            # calibs = calibs.to(self.device)
+            # for key in targets.keys():
+            #     targets[key] = targets[key].to(self.device)
             img_sizes = targets['img_size']
             #targets = self.prepare_targets(targets, inputs.shape[0])
             ##dn
@@ -171,8 +173,10 @@ class Trainer(object):
                     print("%s: %.2f, " %(key, val), end="")
                 print("")
                 print("")
-
-            detr_losses.backward()
+            if self.accelerator is not None:
+                self.accelerator.backward(detr_losses)
+            else:
+                detr_losses.backward()
             self.optimizer.step()
 
             progress_bar.update()
