@@ -68,7 +68,7 @@ class Trainer(object):
     def train(self):
         start_epoch = self.epoch
 
-        progress_bar = tqdm.tqdm(range(start_epoch, self.cfg['max_epoch']), dynamic_ncols=True, leave=True, desc='epochs')
+        progress_bar = tqdm.tqdm(range(start_epoch, self.cfg['max_epoch']), dynamic_ncols=True, leave=True, desc='epochs',disable=not self.accelerator.is_local_main_process)
         best_result = self.best_result
         best_epoch = self.best_epoch
         for epoch in range(start_epoch, self.cfg['max_epoch']):
@@ -119,7 +119,7 @@ class Trainer(object):
     def train_one_epoch(self, epoch):
         torch.set_grad_enabled(True)
         self.model.train()
-        print(">>>>>>> Epoch:", str(epoch) + ":")
+        self.accelerator.print(">>>>>>> Epoch:", str(epoch) + ":")
 
         progress_bar = tqdm.tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters')
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
@@ -161,18 +161,18 @@ class Trainer(object):
 
             flags = [True] * 5
             if batch_idx % 30 == 0:
-                print("----", batch_idx, "----")
-                print("%s: %.2f, " %("loss_detr", detr_losses_dict_log["loss_detr"]))
+                self.accelerator.print("----", batch_idx, "----")
+                self.accelerator.print("%s: %.2f, " %("loss_detr", detr_losses_dict_log["loss_detr"]))
                 for key, val in detr_losses_dict_log.items():
                     if key == "loss_detr":
                         continue
                     if "0" in key or "1" in key or "2" in key or "3" in key or "4" in key or "5" in key:
                         if flags[int(key[-1])]:
-                            print("")
+                            self.accelerator.print("")
                             flags[int(key[-1])] = False
-                    print("%s: %.2f, " %(key, val), end="")
-                print("")
-                print("")
+                    self.accelerator.print("%s: %.2f, " %(key, val), end="")
+                self.accelerator.print("")
+                self.accelerator.print("")
             if self.accelerator is not None:
                 self.accelerator.backward(detr_losses)
             else:
