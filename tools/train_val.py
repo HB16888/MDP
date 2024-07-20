@@ -21,8 +21,8 @@ from lib.helpers.scheduler_helper import build_lr_scheduler
 from lib.helpers.trainer_helper import Trainer
 from lib.helpers.tester_helper import Tester
 from lib.helpers.utils_helper import create_logger
-from lib.helpers.utils_helper import set_random_seed
-
+#from lib.helpers.utils_helper import set_random_seed
+from accelerate.utils import set_seed
 from accelerate import Accelerator, DistributedDataParallelKwargs
 
 parser = argparse.ArgumentParser(description='Depth-aware Transformer for Monocular 3D Object Detection')
@@ -34,7 +34,7 @@ args = parser.parse_args()
 def main():
     assert (os.path.exists(args.config))
     cfg = yaml.load(open(args.config, 'r'), Loader=yaml.Loader)
-    set_random_seed(cfg.get('random_seed', 444))
+    set_seed(cfg.get('random_seed', 444))
 
     model_name = cfg['model_name']
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -83,7 +83,7 @@ def main():
     optimizer = build_optimizer(cfg['optimizer'], model)
     # build lr scheduler
     lr_scheduler, warmup_lr_scheduler = build_lr_scheduler(cfg['lr_scheduler'], optimizer, last_epoch=-1)
-    model, optimizer, train_loader,lr_scheduler, warmup_lr_scheduler = accelerator.prepare(model, optimizer, train_loader,lr_scheduler, warmup_lr_scheduler)
+    model,loss, optimizer, train_loader,lr_scheduler, warmup_lr_scheduler = accelerator.prepare(model,loss, optimizer, train_loader,lr_scheduler, warmup_lr_scheduler)
     trainer = Trainer(cfg=cfg['trainer'],
                       model=model,
                       optimizer=optimizer,
