@@ -92,9 +92,10 @@ class Trainer(object):
                     ckpt_name = os.path.join(self.output_dir, 'checkpoint_epoch_%d' % self.epoch)
                 else:
                     ckpt_name = os.path.join(self.output_dir, 'checkpoint')
-               
+                self.accelerator.wait_for_everyone()
+                unwrapped_model = self.accelerator.unwrap_model(self.model)
                 save_checkpoint(
-                    get_checkpoint_state(self.model, self.optimizer, self.epoch, best_result, best_epoch),
+                    get_checkpoint_state(unwrapped_model, self.optimizer, self.epoch, best_result, best_epoch),
                     ckpt_name)
 
                 if self.tester is not None:
@@ -106,7 +107,7 @@ class Trainer(object):
                         best_epoch = self.epoch
                         ckpt_name = os.path.join(self.output_dir, 'checkpoint_best')
                         save_checkpoint(
-                            get_checkpoint_state(self.model, self.optimizer, self.epoch, best_result, best_epoch),
+                            get_checkpoint_state(unwrapped_model, self.optimizer, self.epoch, best_result, best_epoch),
                             ckpt_name)
                     self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
 

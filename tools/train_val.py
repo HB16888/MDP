@@ -83,7 +83,7 @@ def main():
     optimizer = build_optimizer(cfg['optimizer'], model)
     # build lr scheduler
     lr_scheduler, warmup_lr_scheduler = build_lr_scheduler(cfg['lr_scheduler'], optimizer, last_epoch=-1)
-    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
+    model, optimizer, train_loader,lr_scheduler, warmup_lr_scheduler = accelerator.prepare(model, optimizer, train_loader,lr_scheduler, warmup_lr_scheduler)
     trainer = Trainer(cfg=cfg['trainer'],
                       model=model,
                       optimizer=optimizer,
