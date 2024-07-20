@@ -68,7 +68,7 @@ class Trainer(object):
     def train(self):
         start_epoch = self.epoch
 
-        progress_bar = tqdm.tqdm(range(start_epoch, self.cfg['max_epoch']), dynamic_ncols=True, leave=True, desc='epochs',disable=not self.accelerator.is_local_main_process)
+        progress_bar = tqdm.tqdm(range(start_epoch, self.cfg['max_epoch']), dynamic_ncols=True, leave=True, desc='epochs',disable=(not self.accelerator.is_local_main_process))
         best_result = self.best_result
         best_epoch = self.best_epoch
         for epoch in range(start_epoch, self.cfg['max_epoch']):
@@ -84,36 +84,39 @@ class Trainer(object):
                 self.warmup_lr_scheduler.step()
             else:
                 self.lr_scheduler.step()
-
+            self.accelerator.wait_for_everyone()
             # save trained model
             if (self.epoch % self.cfg['save_frequency']) == 0:
-                os.makedirs(self.output_dir, exist_ok=True)
-                if self.cfg['save_all']:
-                    ckpt_name = os.path.join(self.output_dir, 'checkpoint_epoch_%d' % self.epoch)
-                else:
-                    ckpt_name = os.path.join(self.output_dir, 'checkpoint')
-                self.accelerator.wait_for_everyone()
-                unwrapped_model = self.accelerator.unwrap_model(self.model)
-                save_checkpoint(
-                    get_checkpoint_state(unwrapped_model, self.optimizer, self.epoch, best_result, best_epoch),
-                    ckpt_name)
+                if self.accelerator.is_local_main_process:
+                    os.makedirs(self.output_dir, exist_ok=True)
+                    if self.cfg['save_all']:
+                        ckpt_name = os.path.join(self.output_dir, 'checkpoint_epoch_%d' % self.epoch)
+                    else:
+                        ckpt_name = os.path.join(self.output_dir, 'checkpoint')
+                    unwrapped_model = self.accelerator.unwrap_model(self.model)
+                    unwrap_optim = accelerator.unwrap_model(optimizer)
+                    save_checkpoint(
+                        get_checkpoint_state(unwrapped_model, unwrap_optim, self.epoch, best_result, best_epoch),
+                        ckpt_name)
 
                 if self.tester is not None:
-                    self.logger.info("Test Epoch {}".format(self.epoch))
+                    if self.accelerator.is_local_main_process:
+                        self.logger.info("Test Epoch {}".format(self.epoch))
                     self.tester.inference()
-                    cur_result = self.tester.evaluate()
-                    if cur_result > best_result:
-                        best_result = cur_result
-                        best_epoch = self.epoch
-                        ckpt_name = os.path.join(self.output_dir, 'checkpoint_best')
-                        save_checkpoint(
-                            get_checkpoint_state(unwrapped_model, self.optimizer, self.epoch, best_result, best_epoch),
-                            ckpt_name)
-                    self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
-
-            progress_bar.update()
-
-        self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
+                    if self.accelerator.is_local_main_process:
+                        cur_result = self.tester.evaluate()
+                        if cur_result > best_result:
+                            best_result = cur_result
+                            best_epoch = self.epoch
+                            ckpt_name = os.path.join(self.output_dir, 'checkpoint_best')
+                            save_checkpoint(
+                                get_checkpoint_state(unwrapped_model, unwrap_optim, self.epoch, best_result, best_epoch),
+                                ckpt_name)
+                        self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
+            if self.accelerator.is_local_main_process:
+                progress_bar.update()
+        if self.accelerator.is_local_main_process:
+            self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
 
         return None
 
@@ -122,7 +125,7 @@ class Trainer(object):
         self.model.train()
         self.accelerator.print(">>>>>>> Epoch:", str(epoch) + ":")
 
-        progress_bar = tqdm.tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters')
+        progress_bar = tqdm.tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters',disable=(not self.accelerator.is_local_main_process))
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
             # inputs = inputs.to(self.device)
             # calibs = calibs.to(self.device)
