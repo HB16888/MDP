@@ -115,7 +115,6 @@ def main():
 
     if cfg['dataset']['test_split'] == 'test':
         return
-
     if accelerator.is_local_main_process:
         logger.info('###################  Testing  ##################')
         logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
