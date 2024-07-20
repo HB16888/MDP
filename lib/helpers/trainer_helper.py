@@ -37,12 +37,12 @@ class Trainer(object):
         self.epoch = 0
         self.best_result = 0
         self.best_epoch = 0
+        self.accelerator = accelerator
         self.device = self.accelerator.device
         self.detr_loss = loss
         self.model_name = model_name
         self.output_dir = output_path
         self.tester = None
-        self.accelerator = accelerator
 
         # loading pretrain/resume model
         if cfg.get('pretrain_model'):
@@ -63,7 +63,8 @@ class Trainer(object):
                 map_location=self.device,
                 logger=self.logger)
             self.lr_scheduler.last_epoch = self.epoch - 1
-            self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
+            if self.accelerator.is_local_main_process:
+                self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
         
     def train(self):
         start_epoch = self.epoch
