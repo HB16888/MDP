@@ -78,6 +78,7 @@ class Tester(object):
 
             start_time = time.time()
             ###dn
+            img_sizes = info['img_size']
             outputs = self.model(inputs, calibs, targets, img_sizes, dn_args = 0)
             all_outputs= accelerator.gather_for_metrics(outputs)
             ###
