@@ -54,14 +54,17 @@ class Trainer(object):
                             logger=self.logger)
 
         if cfg.get('resume_model', None):
-            resume_model_path = os.path.join(self.output_dir, "checkpoint.pth")
+            resume_model_path = cfg["resume_model_path"]
             assert os.path.exists(resume_model_path)
+            unwrapped_model = self.accelerator.unwrap_model(self.model)
+            unwrap_optim = self.accelerator.unwrap_model(self.optimizer)
             self.epoch, self.best_result, self.best_epoch = load_checkpoint(
-                model=self.model.to(self.device),
-                optimizer=self.optimizer,
+                model=unwrapped_model,
+                optimizer=unwrap_optim,
                 filename=resume_model_path,
                 map_location=self.device,
-                logger=self.logger)
+                logger=self.logger,
+                accelerator = self.accelerator)
             self.lr_scheduler.last_epoch = self.epoch - 1
             if self.accelerator.is_local_main_process:
                 self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
