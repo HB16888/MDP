@@ -95,7 +95,7 @@ class Trainer(object):
                     else:
                         ckpt_name = os.path.join(self.output_dir, 'checkpoint')
                     unwrapped_model = self.accelerator.unwrap_model(self.model)
-                    unwrap_optim = accelerator.unwrap_model(optimizer)
+                    unwrap_optim = self.accelerator.unwrap_model(self.optimizer)
                     save_checkpoint(
                         get_checkpoint_state(unwrapped_model, unwrap_optim, self.epoch, best_result, best_epoch),
                         ckpt_name)

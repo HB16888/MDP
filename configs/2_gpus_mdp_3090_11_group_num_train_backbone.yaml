@@ -6,7 +6,7 @@ dataset:
   root_dir: 'data/KITTIDataset'
   train_split: 'train'
   test_split: 'val'
-  batch_size: 2
+  batch_size: 1
   use_3d_center: True
   class_merging: False
   use_dontcare: False
@@ -115,7 +115,7 @@ lr_scheduler:
 
 trainer:
   max_epoch: 195
-  gpu_ids: '0,1'
+  gpu_ids: '1'
   save_frequency: 1  # checkpoint save interval (in epoch)
   # resume_model: True
   # pretrain_model: path/to/ckpt
