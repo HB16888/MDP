@@ -6,7 +6,7 @@ dataset:
   root_dir: 'data/KITTIDataset'
   train_split: 'train'
   test_split: 'val'
-  batch_size: 6
+  batch_size: 13
   use_3d_center: True
   class_merging: False
   use_dontcare: False
@@ -105,9 +105,9 @@ model:
 
 optimizer:
   type: 'adamw'
-  lr: 0.000075
+  lr: 0.0001625
   weight_decay: 0.0001
-  unet_lr_factor: 2.0
+  unet_lr_factor: 5.0
 
 
 lr_scheduler:
