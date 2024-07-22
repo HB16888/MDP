@@ -111,7 +111,7 @@ optimizer:
   type: 'adamw'
   lr: 0.0000375
   weight_decay: 0.0001
-  unet_lr_factor: 0.1
+  unet_lr_factor: 1.0
 
 
 lr_scheduler:
