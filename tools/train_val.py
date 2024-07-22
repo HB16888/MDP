@@ -52,8 +52,9 @@ def main():
 
     sys.stdout = open(os.path.join(output_path, f'{model_name}.log'), 'w')
     
-    cfg["dataset"]["use_mdp"]= cfg["model"]["use_mdp"]
-    cfg["optimizer"]["train_backbone"]=cfg["model"]["train_backbone"]
+    cfg["dataset"]["use_mdp"]= cfg["model"].get("use_mdp", False)
+    cfg["optimizer"]["train_backbone"]=cfg["model"].get("train_backbone", False)
+    cfg["optimizer"]["use_lora"]=cfg["model"]["VPDEncoder"].get("use_lora",False)
     # build dataloader
     train_loader, test_loader = build_dataloader(cfg['dataset'], workers=cfg['dataset']['dataloader']['num_workers'])
 

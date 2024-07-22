@@ -11,7 +11,7 @@ from lib.helpers.save_helper import save_checkpoint
 
 from utils import misc
 
-
+from lora_diffusion import extract_lora_ups_down
 class Trainer(object):
     def __init__(self,
                  cfg,
@@ -102,6 +102,16 @@ class Trainer(object):
                     save_checkpoint(
                         get_checkpoint_state(unwrapped_model, unwrap_optim, self.epoch, best_result, best_epoch),
                         ckpt_name)
+                    for _up, _down in extract_lora_ups_down(unwrapped_model.backbone._modules['0'].unet):
+                            print(
+                                "First Unet Layer's Up Weight is now : ",
+                                _up.weight.data,
+                            )
+                            print(
+                                "First Unet Layer's Down Weight is now : ",
+                                _down.weight.data,
+                            )
+                            break
 
                 if self.tester is not None:
                     if self.accelerator.is_local_main_process:

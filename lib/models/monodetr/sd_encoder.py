@@ -15,6 +15,7 @@ from ldm.util import instantiate_from_config
 from utils.misc import NestedTensor
 from typing import Dict, List
 from accelerate import Accelerator
+from lora_diffusion import inject_trainable_lora,extract_lora_ups_down
 def exists(val):
     return val is not None
 
@@ -39,7 +40,9 @@ class VPDEncoder(nn.Module):
                  class_embeddings_path=None,
                  sd_config_path=None,
                  sd_checkpoint_path=None,
-                 use_attn=False):
+                 use_attn=False,
+                 use_lora=False,
+                 rank=4):
         super().__init__()
         if return_interm_layers:
             if use_attn==False:
@@ -84,11 +87,18 @@ class VPDEncoder(nn.Module):
         del sd_model.cond_stage_model
         del self.encoder_vq.decoder
         del self.unet.unet.diffusion_model.out
-
+        accelerator = Accelerator()
         for param in self.encoder_vq.parameters():
             param.requires_grad = False
+        if not self.train_backbone:
+            self.unet.requires_grad_(False)
+        if use_lora:
+            unet_lora_params, _=inject_trainable_lora(self.unet, r=rank)
+            for _up, _down in extract_lora_ups_down(self.unet):
+                accelerator.print("Before training: Unet First Layer lora up", _up.weight.data)
+                accelerator.print("Before training: Unet First Layer lora down", _down.weight.data)
+                break
         self.text_adapter = TextAdapterDepth(text_dim=text_dim)
-        accelerator = Accelerator()
         self.class_embeddings = torch.load(class_embeddings_path, map_location=accelerator.device)
         self.gamma = nn.Parameter(torch.ones(text_dim) * 1e-4)
 

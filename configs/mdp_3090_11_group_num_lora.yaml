@@ -50,6 +50,13 @@ model:
     class_embeddings_path: "/data3/ipad_3d/MDP/kitti_embeddings.pth"
     sd_config_path: "/data3/ipad_3d/MDP/configs/v1_inference.yaml"
     sd_checkpoint_path: "/data3/ipad_3d/MDP/v1-5-pruned-emaonly.ckpt"
+
+  # LoRA
+    use_lora: True
+    rank: 4
+
+
+
   # Depth predictor
   mode: LID
   num_depth_bins: 80
@@ -104,6 +111,7 @@ optimizer:
   type: 'adamw'
   lr: 0.0000125
   weight_decay: 0.0001
+  unet_lr_factor: 0.1
 
 
 lr_scheduler:
