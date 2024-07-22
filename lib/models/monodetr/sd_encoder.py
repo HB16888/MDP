@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from ldm.util import instantiate_from_config
 from utils.misc import NestedTensor
 from typing import Dict, List
-
+from accelerate import Accelerator
 def exists(val):
     return val is not None
 
@@ -87,9 +87,9 @@ class VPDEncoder(nn.Module):
 
         for param in self.encoder_vq.parameters():
             param.requires_grad = False
-
         self.text_adapter = TextAdapterDepth(text_dim=text_dim)
-        self.class_embeddings = torch.load(class_embeddings_path)
+        accelerator = Accelerator()
+        self.class_embeddings = torch.load(class_embeddings_path, map_location=accelerator.device)
         self.gamma = nn.Parameter(torch.ones(text_dim) * 1e-4)
 
     def _init_weights(self, m):
@@ -109,11 +109,11 @@ class VPDEncoder(nn.Module):
     def forward(self, x, class_ids=None):
         with torch.no_grad():
             latents = self.encoder_vq.encode(x).mode().detach()
-        class_embeddings=[]
-        for class_embedding in self.class_embeddings:
-            class_embeddings.append(class_embedding.to(latents.device))
+        # class_embeddings=[]
+        # for class_embedding in self.class_embeddings:
+        #     class_embeddings.append(class_embedding.to(latents.device))
 
-        c_crossattn = self.text_adapter(latents, class_embeddings,
+        c_crossattn = self.text_adapter(latents, self.class_embeddings,
                                         self.gamma)  # NOTE: here the c_crossattn should be expand_dim as latents
         c_crossattn = c_crossattn.repeat(x.shape[0], 1, 1)
         t = torch.ones((x.shape[0],), device=x.device).long()

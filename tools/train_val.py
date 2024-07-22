@@ -86,7 +86,7 @@ def main():
     optimizer = build_optimizer(cfg['optimizer'], model)
     # build lr scheduler
     lr_scheduler, warmup_lr_scheduler = build_lr_scheduler(cfg['lr_scheduler'], optimizer, last_epoch=-1)
-    model,loss, optimizer, train_loader,lr_scheduler, warmup_lr_scheduler = accelerator.prepare(model,loss, optimizer, train_loader,lr_scheduler, warmup_lr_scheduler)
+    model,loss, optimizer, train_loader, test_loader,lr_scheduler, warmup_lr_scheduler = accelerator.prepare(model,loss, optimizer, train_loader, test_loader,lr_scheduler, warmup_lr_scheduler)
     trainer = Trainer(cfg=cfg['trainer'],
                       model=model,
                       optimizer=optimizer,
@@ -106,7 +106,8 @@ def main():
                     logger=logger,
                     train_cfg=cfg['trainer'],
                     model_name=model_name,
-                    output_path=output_path)
+                    output_path=output_path,
+                    accelerator=accelerator)
     if cfg['dataset']['test_split'] != 'test':
         trainer.tester = tester
     if accelerator.is_local_main_process:
