@@ -10,7 +10,7 @@ import time
 
 
 class Tester(object):
-    def __init__(self, cfg, model, dataloader, logger, train_cfg=None, model_name='monodetr',output_path=None):
+    def __init__(self, cfg, model, dataloader, logger, train_cfg=None, model_name='monodetr',output_path=None,accelerator=None):
         self.cfg = cfg
         self.model = model
         self.dataloader = dataloader
@@ -22,6 +22,7 @@ class Tester(object):
         self.logger = logger
         self.train_cfg = train_cfg
         self.model_name = model_name
+        self.accelerator = accelerator
 
     def test(self):
         assert self.cfg['mode'] in ['single', 'all']
@@ -67,47 +68,48 @@ class Tester(object):
         self.model.eval()
 
         results = {}
-        progress_bar = tqdm.tqdm(total=len(self.dataloader), leave=True, desc='Evaluation Progress')
+        progress_bar = tqdm.tqdm(total=len(self.dataloader), leave=True, desc='Evaluation Progress',disable=(not self.accelerator.is_local_main_process))
         model_infer_time = 0
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.dataloader):
             # load evaluation data and move data to GPU.
-            inputs = inputs.to(self.device)
-            calibs = calibs.to(self.device)
-            img_sizes = info['img_size'].to(self.device)
+            # inputs = inputs.to(self.device)
+            # calibs = calibs.to(self.device)
+            # img_sizes = info['img_size'].to(self.device)
 
             start_time = time.time()
             ###dn
             outputs = self.model(inputs, calibs, targets, img_sizes, dn_args = 0)
+            all_outputs= accelerator.gather_for_metrics(outputs)
             ###
             end_time = time.time()
             model_infer_time += end_time - start_time
+            if self.accelerator.is_local_main_process:
+                dets = extract_dets_from_outputs(outputs=all_outputs, K=self.max_objs, topk=self.cfg['topk'])
 
-            dets = extract_dets_from_outputs(outputs=outputs, K=self.max_objs, topk=self.cfg['topk'])
+                dets = dets.detach().cpu().numpy()
 
-            dets = dets.detach().cpu().numpy()
+                # get corresponding calibs & transform tensor to numpy
+                calibs = [self.dataloader.dataset.get_calib(index) for index in info['img_id']]
+                info = {key: val.detach().cpu().numpy() for key, val in info.items()}
+                cls_mean_size = self.dataloader.dataset.cls_mean_size
+                dets = decode_detections(
+                    dets=dets,
+                    info=info,
+                    calibs=calibs,
+                    cls_mean_size=cls_mean_size,
+                    threshold=self.cfg.get('threshold', 0.2))
 
-            # get corresponding calibs & transform tensor to numpy
-            calibs = [self.dataloader.dataset.get_calib(index) for index in info['img_id']]
-            info = {key: val.detach().cpu().numpy() for key, val in info.items()}
-            cls_mean_size = self.dataloader.dataset.cls_mean_size
-            dets = decode_detections(
-                dets=dets,
-                info=info,
-                calibs=calibs,
-                cls_mean_size=cls_mean_size,
-                threshold=self.cfg.get('threshold', 0.2))
+                results.update(dets)
+                progress_bar.update()
+        if self.accelerator.is_local_main_process:
+            self.accelerator.print("inference on {} images by {}/per image".format(
+                len(self.dataloader), model_infer_time / len(self.dataloader)))
 
-            results.update(dets)
-            progress_bar.update()
+            progress_bar.close()
 
-        print("inference on {} images by {}/per image".format(
-            len(self.dataloader), model_infer_time / len(self.dataloader)))
-
-        progress_bar.close()
-
-        # save the result for evaluation.
-        self.logger.info('==> Saving ...')
-        self.save_results(results)
+            # save the result for evaluation.
+            self.logger.info('==> Saving ...')
+            self.save_results(results)
 
     def save_results(self, results):
         output_dir = os.path.join(self.output_dir, 'outputs', 'data')
