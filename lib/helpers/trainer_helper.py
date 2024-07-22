@@ -104,6 +104,7 @@ class Trainer(object):
                     if self.accelerator.is_local_main_process:
                         self.logger.info("Test Epoch {}".format(self.epoch))
                     self.tester.inference()
+                    self.accelerator.wait_for_everyone()
                     if self.accelerator.is_local_main_process:
                         cur_result = self.tester.evaluate()
                         if cur_result > best_result:

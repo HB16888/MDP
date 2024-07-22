@@ -75,8 +75,8 @@ class Tester(object):
             # inputs = inputs.to(self.device)
             # calibs = calibs.to(self.device)
             # img_sizes = info['img_size'].to(self.device)
-
-            start_time = time.time()
+            if self.accelerator.is_local_main_process:
+                start_time = time.time()
             ###dn
             img_sizes = info['img_size']
             outputs = self.model(inputs, calibs, targets, img_sizes, dn_args = 0)
@@ -87,17 +87,17 @@ class Tester(object):
             info = {key: val.detach().cpu().numpy() for key, val in info.items()}
             cls_mean_size = self.dataloader.dataset.cls_mean_size
             dets = decode_detections(
-                dets=all_dets,
+                dets=dets,
                 info=info,
                 calibs=calibs,
                 cls_mean_size=cls_mean_size,
                 threshold=self.cfg.get('threshold', 0.2))
-            all_dets= self.accelerator.gather_for_metrics(dets)
             ###
-            end_time = time.time()
-            model_infer_time += end_time - start_time
             if self.accelerator.is_local_main_process:
-                results.update(dets)
+                end_time = time.time()
+                model_infer_time += end_time - start_time
+            results.update(dets)
+            if self.accelerator.is_local_main_process:
                 progress_bar.update()
         if self.accelerator.is_local_main_process:
             self.accelerator.print("inference on {} images by {}/per image".format(
@@ -105,9 +105,9 @@ class Tester(object):
 
             progress_bar.close()
 
-            # save the result for evaluation.
+        # save the result for evaluation.
             self.logger.info('==> Saving ...')
-            self.save_results(results)
+        self.save_results(results)
 
     def save_results(self, results):
         output_dir = os.path.join(self.output_dir, 'outputs', 'data')
