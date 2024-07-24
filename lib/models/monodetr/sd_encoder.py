@@ -20,6 +20,7 @@ from diffusers import (
     UNet2DConditionModel,
 )
 from peft import LoraConfig
+from diffusers.models.attention_processor import AttnProcessor2_0
 def exists(val):
     return val is not None
 
@@ -94,13 +95,20 @@ class VPDEncoder(nn.Module):
             del self.encoder_vq.decoder
             del self.unet.unet.diffusion_model.out
         else:
-            self.encoder_vq = AutoencoderKL.from_pretrained(sd_checkpoint_path,subfolder="vae",safe_tensors=True)
+            torch._inductor.config.conv_1x1_as_mm = True
+            torch._inductor.config.coordinate_descent_tuning = True
+            torch._inductor.config.epilogue_fusion = False
+            torch._inductor.config.coordinate_descent_check_all_directions = True
+            encoder_vq = AutoencoderKL.from_pretrained(sd_checkpoint_path,subfolder="vae",safe_tensors=True).to(memory_format=torch.channels_last)
+            del encoder_vq.decoder
+            self.encoder_vq =torch.compile(encoder_vq, mode="max-autotune", fullgraph=True)
             unet=UNet2DConditionModel.from_pretrained(sd_checkpoint_path,subfolder="unet",safe_tensors=True,variant="non_ema")
+            unet.set_attn_processor(AttnProcessor2_0())
+            del unet.conv_norm_out
+            del unet.conv_out
+            del unet.conv_act
+            unet = torch.compile(unet.to(memory_format=torch.channels_last), mode="reduce-overhead", fullgraph=True)
             self.unet = UNetWrapper(unet, use_attn=use_attn,use_diffusers=use_diffusers)
-            del self.encoder_vq.decoder
-            del self.unet.unet.conv_norm_out
-            del self.unet.unet.conv_out
-            del self.unet.unet.conv_act
             
         accelerator = Accelerator()
         self.encoder_vq.requires_grad_(False)
