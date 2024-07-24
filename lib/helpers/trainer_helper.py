@@ -10,8 +10,6 @@ from lib.helpers.save_helper import load_checkpoint
 from lib.helpers.save_helper import save_checkpoint
 
 from utils import misc
-
-from lora_diffusion import extract_lora_ups_down
 class Trainer(object):
     def __init__(self,
                  cfg,
@@ -102,16 +100,6 @@ class Trainer(object):
                     save_checkpoint(
                         get_checkpoint_state(unwrapped_model, unwrap_optim, self.epoch, best_result, best_epoch),
                         ckpt_name)
-                    for _up, _down in extract_lora_ups_down(unwrapped_model.backbone._modules['0'].unet):
-                            print(
-                                "First Unet Layer's Up Weight is now : ",
-                                _up.weight.data,
-                            )
-                            print(
-                                "First Unet Layer's Down Weight is now : ",
-                                _down.weight.data,
-                            )
-                            break
 
                 if self.tester is not None:
                     if self.accelerator.is_local_main_process:
@@ -139,7 +127,10 @@ class Trainer(object):
         torch.set_grad_enabled(True)
         self.model.train()
         self.accelerator.print(">>>>>>> Epoch:", str(epoch) + ":")
-
+        for idx, param_group in enumerate(self.optimizer.param_groups):
+            current_lr = param_group['lr']
+            group_name = f'Group_{idx}'
+            self.accelerator.print(f"{group_name}, Current Learning Rate: {current_lr}")
         progress_bar = tqdm.tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters',disable=(not self.accelerator.is_local_main_process))
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
             # inputs = inputs.to(self.device)

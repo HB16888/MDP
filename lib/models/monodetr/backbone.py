@@ -139,7 +139,8 @@ def build_backbone(cfg):
                          sd_checkpoint_path=cfg["VPDEncoder"].get("sd_checkpoint_path",None),
                          use_attn=cfg["VPDEncoder"].get("use_attn",False),
                          use_lora=cfg["VPDEncoder"].get("use_lora",False),
-                         rank=cfg["VPDEncoder"].get("rank",4)
+                         rank=cfg["VPDEncoder"].get("rank",4),
+                         use_diffusers=cfg["VPDEncoder"].get("use_diffusers",False)
                          )
         model = Joiner(backbone, position_embedding)
     else:

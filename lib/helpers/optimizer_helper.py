@@ -20,7 +20,7 @@ def build_optimizer(cfg_optimizer, model):
         parameters = [{'params': biases, 'weight_decay': 0},
                     {'params': weights, 'weight_decay': cfg_optimizer['weight_decay']},
                     {'params': unet_biases, 'weight_decay': 0,"lr":cfg_optimizer['lr']*cfg_optimizer.get("unet_lr_factor",0.1)},
-                    {'params': unet_weights, 'weight_decay': cfg_optimizer['weight_decay'],"lr":cfg_optimizer['lr']/10}]
+                    {'params': unet_weights, 'weight_decay': cfg_optimizer['weight_decay'],"lr":cfg_optimizer['lr']*cfg_optimizer.get("unet_lr_factor",0.1)}]
     else:
         weights, biases= [], []
         for name, param in model.named_parameters():
