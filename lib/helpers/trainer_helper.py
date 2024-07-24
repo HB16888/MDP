@@ -63,7 +63,7 @@ class Trainer(object):
                 map_location=self.device,
                 logger=self.logger,
                 accelerator = self.accelerator)
-            self.lr_scheduler.last_epoch = self.epoch - 1
+            self.lr_scheduler.scheduler.last_epoch=self.lr_scheduler.last_epoch = self.epoch - 1
             if self.accelerator.is_local_main_process:
                 self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
         
