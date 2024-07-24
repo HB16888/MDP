@@ -130,7 +130,7 @@ class Trainer(object):
         for idx, param_group in enumerate(self.optimizer.param_groups):
             current_lr = param_group['lr']
             group_name = f'Group_{idx}'
-            self.accelerator.print(f"{group_name}, Current Learning Rate: {current_lr}")
+            self.accelerator.print(f"{group_name}_Current Learning Rate: {current_lr}")
         progress_bar = tqdm.tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters',disable=(not self.accelerator.is_local_main_process))
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
             # inputs = inputs.to(self.device)
