@@ -6,7 +6,7 @@ dataset:
   root_dir: 'data/KITTIDataset'
   train_split: 'train'
   test_split: 'val'
-  batch_size: 1
+  batch_size: 2
   use_3d_center: True
   class_merging: False
   use_dontcare: False
@@ -25,7 +25,7 @@ dataset:
 
   depth_scale: 'normal'
   dataloader: 
-    num_workers: 8
+    num_workers: 16
     pin_memory: True
 
 
@@ -105,7 +105,7 @@ model:
 
 optimizer:
   type: 'adamw'
-  lr: 0.0000125
+  lr: 0.000025
   weight_decay: 0.0001
   unet_lr_factor: 0.1
 
