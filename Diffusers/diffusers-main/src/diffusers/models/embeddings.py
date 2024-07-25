@@ -1170,7 +1170,7 @@ class PixArtAlphaCombinedTimestepSizeEmbeddings(nn.Module):
             self.resolution_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
             self.aspect_ratio_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
 
-    def forward(self, timestep, resolution, aspect_ratio, batch_size, hidden_dtype):
+    def forward(self, timestep, resolution=None, aspect_ratio=None, batch_size=None, hidden_dtype=None):
         timesteps_proj = self.time_proj(timestep)
         timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
 

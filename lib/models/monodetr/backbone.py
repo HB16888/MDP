@@ -140,7 +140,8 @@ def build_backbone(cfg):
                          use_attn=cfg["VPDEncoder"].get("use_attn",False),
                          use_lora=cfg["VPDEncoder"].get("use_lora",False),
                          rank=cfg["VPDEncoder"].get("rank",4),
-                         use_diffusers=cfg["VPDEncoder"].get("use_diffusers",False)
+                         use_diffusers=cfg["VPDEncoder"].get("use_diffusers",False),
+                         model_name = cfg["VPDEncoder"].get("model_name","SD"),
                          )
         model = Joiner(backbone, position_embedding)
     else:

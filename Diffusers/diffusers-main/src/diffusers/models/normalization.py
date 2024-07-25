@@ -161,10 +161,13 @@ class AdaLayerNormSingle(nn.Module):
     def forward(
         self,
         timestep: torch.Tensor,
-        added_cond_kwargs: Optional[Dict[str, torch.Tensor]] = None,
+        added_cond_kwargs: Optional[Dict[str, torch.Tensor]] = {},
         batch_size: Optional[int] = None,
         hidden_dtype: Optional[torch.dtype] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        # 确保 added_cond_kwargs 不是 None
+        if added_cond_kwargs is None:
+            added_cond_kwargs = {}
         # No modulation happening here.
         embedded_timestep = self.emb(timestep, **added_cond_kwargs, batch_size=batch_size, hidden_dtype=hidden_dtype)
         return self.linear(self.silu(embedded_timestep)), embedded_timestep

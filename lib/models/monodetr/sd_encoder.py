@@ -18,9 +18,13 @@ from accelerate import Accelerator
 from diffusers import (
     AutoencoderKL,
     UNet2DConditionModel,
+    PixArtTransformer2DModel
 )
+from diffusers.models.downsampling import Downsample2D
 from peft import LoraConfig
 from diffusers.models.attention_processor import AttnProcessor2_0
+
+
 def exists(val):
     return val is not None
 
@@ -38,8 +42,7 @@ class VPDEncoder(nn.Module):
     def __init__(self, 
                  out_dim=1024, 
                  ldm_prior=[320, 640, 1280 + 1280], 
-                 sd_path=None, 
-                 text_dim=768,
+                 sd_path=None,
                  train_backbone=False, 
                  return_interm_layers=True,
                  class_embeddings_path=None,
@@ -48,12 +51,17 @@ class VPDEncoder(nn.Module):
                  use_attn=False,
                  use_lora=False,
                  rank=4,
-                 use_diffusers=False):
+                 use_diffusers=False,
+                 model_name = "SD"):
         super().__init__()
         if return_interm_layers:
             if use_attn==False:
-                self.strides = [8, 16, 32]
-                self.num_channels = [320, 640, 2560]
+                if model_name == "SD":
+                    self.strides = [8, 16, 32]
+                    self.num_channels = [320, 640, 2560]
+                elif model_name == "PixArtSigma":
+                    self.strides = [8, 16, 32]
+                    self.num_channels = [512, 1024, 2048]
             else:
                 self.strides = [8, 16, 32]
                 self.num_channels = [320, 641, 2561]
@@ -62,6 +70,7 @@ class VPDEncoder(nn.Module):
             self.num_channels = [2560]
         self.train_backbone = train_backbone
         self.use_diffusers = use_diffusers
+        self.model_name = model_name
         self.layer1 = nn.Sequential(
             nn.Conv2d(ldm_prior[0], ldm_prior[0], 3, stride=2, padding=1),
             nn.GroupNorm(16, ldm_prior[0]),
@@ -94,7 +103,7 @@ class VPDEncoder(nn.Module):
             del sd_model.cond_stage_model
             del self.encoder_vq.decoder
             del self.unet.unet.diffusion_model.out
-        else:
+        elif self.model_name == "SD":
             torch._inductor.config.conv_1x1_as_mm = True
             torch._inductor.config.coordinate_descent_tuning = True
             torch._inductor.config.epilogue_fusion = False
@@ -109,7 +118,19 @@ class VPDEncoder(nn.Module):
             del unet.conv_act
             unet = torch.compile(unet.to(memory_format=torch.channels_last), mode="reduce-overhead", fullgraph=True)
             self.unet = UNetWrapper(unet, use_attn=use_attn,use_diffusers=use_diffusers)
-            
+        elif self.model_name == "PixArtSigma":
+            torch._inductor.config.conv_1x1_as_mm = True
+            torch._inductor.config.coordinate_descent_tuning = True
+            torch._inductor.config.epilogue_fusion = False
+            torch._inductor.config.coordinate_descent_check_all_directions = True
+            encoder_vq = AutoencoderKL.from_pretrained(sd_checkpoint_path,subfolder="vae",safe_tensors=True).to(memory_format=torch.channels_last)
+            del encoder_vq.decoder
+            self.encoder_vq =torch.compile(encoder_vq, mode="max-autotune", fullgraph=True)
+            unet=dit=PixArtTransformer2DModel.from_pretrained(sd_checkpoint_path,subfolder="transformer",safe_tensors=True,
+                                  low_cpu_mem_usage=False,
+                                  ignore_mismatched_sizes=True)
+            #unet = torch.compile(dit.to(memory_format=torch.channels_last), mode="reduce-overhead", fullgraph=True)
+            self.unet = UNetWrapper(unet, use_attn=use_attn,use_diffusers=use_diffusers,model_name=self.model_name)
         accelerator = Accelerator()
         self.encoder_vq.requires_grad_(False)
         if not self.train_backbone:
@@ -123,9 +144,10 @@ class VPDEncoder(nn.Module):
             )
             self.unet.unet.add_adapter(unet_lora_config)
             lora_layers = filter(lambda p: p.requires_grad, self.unet.unet.parameters())
-        self.text_adapter = TextAdapterDepth(text_dim=text_dim)
         self.class_embeddings = torch.load(class_embeddings_path, map_location=accelerator.device)
+        text_dim=self.class_embeddings[0].shape[0]
         self.gamma = nn.Parameter(torch.ones(text_dim) * 1e-4)
+        self.text_adapter = TextAdapterDepth(text_dim=text_dim)
 
     def _init_weights(self, m):
         if isinstance(m, (nn.Conv2d, nn.Linear)):
@@ -158,11 +180,15 @@ class VPDEncoder(nn.Module):
         # import pdb; pdb.set_trace()
         if not self.use_diffusers:
             outs = self.unet(latents, t, c_crossattn=[c_crossattn])
-        else:
+            feats = [outs[0], outs[1], torch.cat([outs[2], F.interpolate(outs[3], scale_factor=2)], dim=1)]
+        elif self.model_name == "SD":
             outs = self.unet(latents, t, c_crossattn)
-        feats = [outs[0], outs[1], torch.cat([outs[2], F.interpolate(outs[3], scale_factor=2)], dim=1)]
+            feats = [outs[0], outs[1], torch.cat([outs[2], F.interpolate(outs[3], scale_factor=2)], dim=1)]
+        elif self.model_name == "PixArtSigma":
+            feats = self.unet(latents, c_crossattn,t)
         # feats_upsampled = [F.interpolate(feat, scale_factor=2) for feat in feats]
         # feats_original = [feat[:,:,feat.shape[2]//2-int(round(feat.shape[3]*384/1280/2)):feat.shape[2]//2+int(round(feat.shape[3]*384/1280/2)),:] for feat in feats_upsampled]
+        
         out = {}
         for name, x in enumerate(feats):
             m = torch.zeros(x.shape[0], x.shape[2], x.shape[3]).to(torch.bool).to(x.device)
@@ -175,7 +201,7 @@ class VPDEncoder(nn.Module):
 
 class UNetWrapper(nn.Module):
     def __init__(self, unet, use_attn=True, base_size=1280, max_attn_size=None,
-                 attn_selector='up_cross+down_cross',use_diffusers=False) -> None:
+                 attn_selector='up_cross+down_cross',use_diffusers=False,model_name="SD") -> None:
         super().__init__()
         self.unet = unet
         self.attention_store = AttentionStore(base_size=base_size // 8, max_size=max_attn_size)
@@ -185,21 +211,36 @@ class UNetWrapper(nn.Module):
         self.use_attn = use_attn
         if self.use_attn:
             register_attention_control(unet, self.attention_store)
-        register_hier_output(unet, use_diffusers)
+        if model_name == "SD":
+            register_hier_output(unet, use_diffusers)
+        elif model_name == "PixArtSigma":
+            self.down1 = Downsample2D(channels=512,out_channels=1024,use_conv=True)
+            self.down2 = Downsample2D(channels=1024,out_channels=2048,use_conv=True)
         self.attn_selector = attn_selector.split('+')
+        self.model_name = model_name
 
     def forward(self, *args, **kwargs):
-        if self.use_attn:
-            self.attention_store.reset()
-        out_list = self.unet(*args, **kwargs)
-        if self.use_attn:
-            avg_attn = self.attention_store.get_average_attention()
-            attn16, attn32, attn64 = self.process_attn(avg_attn)
-            out_list[1] = torch.cat([out_list[1], attn16], dim=1)
-            out_list[2] = torch.cat([out_list[2], attn32], dim=1)
-            if attn64 is not None:
-                out_list[3] = torch.cat([out_list[3], attn64], dim=1)
-        return out_list[::-1]
+        if self.model_name == "SD":
+            if self.use_attn:
+                self.attention_store.reset()
+            out_list = self.unet(*args, **kwargs)
+            if self.use_attn:
+                avg_attn = self.attention_store.get_average_attention()
+                attn16, attn32, attn64 = self.process_attn(avg_attn)
+                out_list[1] = torch.cat([out_list[1], attn16], dim=1)
+                out_list[2] = torch.cat([out_list[2], attn32], dim=1)
+                if attn64 is not None:
+                    out_list[3] = torch.cat([out_list[3], attn64], dim=1)
+            return out_list[::-1]
+        elif self.model_name == "PixArtSigma":
+            out_list = []
+            out = self.unet(*args, **kwargs).sample
+            out_list.append(out)
+            out1 = self.down1(out)
+            out_list.append(out1)
+            out2 = self.down2(out1)
+            out_list.append(out2)
+            return out_list
 
     def process_attn(self, avg_attn):
         attns = {self.size16: [], self.size32: [], self.size64: []}
