@@ -62,7 +62,7 @@ class VPDEncoder(nn.Module):
                     self.num_channels = [320, 640, 2560]
                 elif model_name == "PixArtSigma":
                     self.strides = [8, 16, 32]
-                    self.num_channels = [8, 16, 32]
+                    self.num_channels = [512, 1024, 2048]
             else:
                 self.strides = [8, 16, 32]
                 self.num_channels = [320, 641, 2561]
@@ -115,8 +115,8 @@ class VPDEncoder(nn.Module):
                                   ignore_mismatched_sizes=True)
             #unet = torch.compile(dit.to(memory_format=torch.channels_last), mode="reduce-overhead", fullgraph=True)
             self.unet = UNetWrapper(unet, use_attn=use_attn,use_diffusers=use_diffusers,model_name=self.model_name)
-            self.down1 = Downsample2D(channels=8,out_channels=16,use_conv=True)
-            self.down2 = Downsample2D(channels=16,out_channels=32,use_conv=True)
+            self.down1 = Downsample2D(channels=512,out_channels=1024,use_conv=True)
+            self.down2 = Downsample2D(channels=1024,out_channels=2048,use_conv=True)
             # accelerator.print("down1")
             # for name, param in self.down1.named_parameters():
             #     accelerator.print(name)
@@ -147,6 +147,10 @@ class VPDEncoder(nn.Module):
                     target_modules=["to_k", "to_q", "to_v", "to_out.0"],
                 )
                 self.unet.unet.add_adapter(dit_lora_config)
+                for name, param in self.named_parameters():
+                    if "proj_out" in name:
+                        param.requires_grad = True
+                        #accelerator.print(name)
         self.class_embeddings = torch.load(class_embeddings_path, map_location=accelerator.device)
         text_dim=self.class_embeddings[0].shape[0]
         self.gamma = nn.Parameter(torch.ones(text_dim) * 1e-4)

@@ -9,11 +9,9 @@ def build_optimizer(cfg_optimizer, model):
         weights, biases ,unet_biases,unet_weights= [], [],[],[]
         # print("all parameters")
         for name, param in model.named_parameters():
-            # if "Conv2d" in name:
-            #         print(name)
-            if 'bias' in name and "unet" not in name:
+            if 'bias' in name and ("unet" not in name or "proj_out" in name):
                 biases += [param]
-            elif 'bias' not in name and "unet" not in name:
+            elif 'bias' not in name and ("unet" not in name or "proj_out" in name):
                 weights += [param]
             elif 'bias' in name and "unet" in name:
                 unet_biases += [param]
