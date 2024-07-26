@@ -24,11 +24,12 @@ from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormSingle
 
+from ...loaders import PeftAdapterMixin
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
+class PixArtTransformer2DModel(ModelMixin, ConfigMixin,PeftAdapterMixin):
     r"""
     A 2D Transformer model as introduced in PixArt family of models (https://arxiv.org/abs/2310.00426,
     https://arxiv.org/abs/2403.04692).

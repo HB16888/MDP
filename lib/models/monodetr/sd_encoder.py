@@ -21,7 +21,7 @@ from diffusers import (
     PixArtTransformer2DModel
 )
 from diffusers.models.downsampling import Downsample2D
-from peft import LoraConfig
+from peft import LoraConfig, get_peft_model
 from diffusers.models.attention_processor import AttnProcessor2_0
 
 
@@ -54,6 +54,7 @@ class VPDEncoder(nn.Module):
                  use_diffusers=False,
                  model_name = "SD"):
         super().__init__()
+        accelerator = Accelerator()
         if return_interm_layers:
             if use_attn==False:
                 if model_name == "SD":
@@ -61,7 +62,7 @@ class VPDEncoder(nn.Module):
                     self.num_channels = [320, 640, 2560]
                 elif model_name == "PixArtSigma":
                     self.strides = [8, 16, 32]
-                    self.num_channels = [512, 1024, 2048]
+                    self.num_channels = [8, 16, 32]
             else:
                 self.strides = [8, 16, 32]
                 self.num_channels = [320, 641, 2561]
@@ -71,23 +72,6 @@ class VPDEncoder(nn.Module):
         self.train_backbone = train_backbone
         self.use_diffusers = use_diffusers
         self.model_name = model_name
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(ldm_prior[0], ldm_prior[0], 3, stride=2, padding=1),
-            nn.GroupNorm(16, ldm_prior[0]),
-            nn.ReLU(),
-            nn.Conv2d(ldm_prior[0], ldm_prior[0], 3, stride=2, padding=1),
-        )
-
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(ldm_prior[1], ldm_prior[1], 3, stride=2, padding=1),
-        )
-
-        self.out_layer = nn.Sequential(
-            nn.Conv2d(sum(ldm_prior), out_dim, 1),
-            nn.GroupNorm(16, out_dim),
-            nn.ReLU(),
-        )
-
         self.apply(self._init_weights)
         if not use_diffusers:
             ### stable diffusion layers
@@ -131,19 +115,38 @@ class VPDEncoder(nn.Module):
                                   ignore_mismatched_sizes=True)
             #unet = torch.compile(dit.to(memory_format=torch.channels_last), mode="reduce-overhead", fullgraph=True)
             self.unet = UNetWrapper(unet, use_attn=use_attn,use_diffusers=use_diffusers,model_name=self.model_name)
-        accelerator = Accelerator()
+            self.down1 = Downsample2D(channels=8,out_channels=16,use_conv=True)
+            self.down2 = Downsample2D(channels=16,out_channels=32,use_conv=True)
+            # accelerator.print("down1")
+            # for name, param in self.down1.named_parameters():
+            #     accelerator.print(name)
+            # accelerator.print("down2")    
+            # for name, param in self.down2.named_parameters():
+            #     accelerator.print(name)
+            # accelerator.print("VPDEncoder")
+            # for name, param in self.named_parameters():
+            #     if "Conv2d" in name:
+            #         accelerator.print(name)
         self.encoder_vq.requires_grad_(False)
         if not self.train_backbone:
             self.unet.requires_grad_(False)
         if use_lora:
-            unet_lora_config = LoraConfig(
-                r=rank,
-                lora_alpha=rank,
-                init_lora_weights="gaussian",
-                target_modules=["to_k", "to_q", "to_v", "to_out.0"],
-            )
-            self.unet.unet.add_adapter(unet_lora_config)
-            lora_layers = filter(lambda p: p.requires_grad, self.unet.unet.parameters())
+            if self.model_name == "SD":
+                unet_lora_config = LoraConfig(
+                    r=rank,
+                    lora_alpha=rank,
+                    init_lora_weights="gaussian",
+                    target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+                )
+                self.unet.unet.add_adapter(unet_lora_config)
+            elif self.model_name == "PixArtSigma":
+                dit_lora_config = LoraConfig(
+                    r=rank,
+                    lora_alpha=rank,
+                    init_lora_weights="gaussian",
+                    target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+                )
+                self.unet.unet.add_adapter(dit_lora_config)
         self.class_embeddings = torch.load(class_embeddings_path, map_location=accelerator.device)
         text_dim=self.class_embeddings[0].shape[0]
         self.gamma = nn.Parameter(torch.ones(text_dim) * 1e-4)
@@ -185,7 +188,14 @@ class VPDEncoder(nn.Module):
             outs = self.unet(latents, t, c_crossattn)
             feats = [outs[0], outs[1], torch.cat([outs[2], F.interpolate(outs[3], scale_factor=2)], dim=1)]
         elif self.model_name == "PixArtSigma":
-            feats = self.unet(latents, c_crossattn,t)
+            out_list = []
+            out = self.unet(latents, c_crossattn,t)
+            out_list.append(out)
+            out1 = self.down1(out)
+            out_list.append(out1)
+            out2 = self.down2(out1)
+            out_list.append(out2)
+            feats = out_list
         # feats_upsampled = [F.interpolate(feat, scale_factor=2) for feat in feats]
         # feats_original = [feat[:,:,feat.shape[2]//2-int(round(feat.shape[3]*384/1280/2)):feat.shape[2]//2+int(round(feat.shape[3]*384/1280/2)),:] for feat in feats_upsampled]
         
@@ -213,9 +223,6 @@ class UNetWrapper(nn.Module):
             register_attention_control(unet, self.attention_store)
         if model_name == "SD":
             register_hier_output(unet, use_diffusers)
-        elif model_name == "PixArtSigma":
-            self.down1 = Downsample2D(channels=512,out_channels=1024,use_conv=True)
-            self.down2 = Downsample2D(channels=1024,out_channels=2048,use_conv=True)
         self.attn_selector = attn_selector.split('+')
         self.model_name = model_name
 
@@ -233,14 +240,8 @@ class UNetWrapper(nn.Module):
                     out_list[3] = torch.cat([out_list[3], attn64], dim=1)
             return out_list[::-1]
         elif self.model_name == "PixArtSigma":
-            out_list = []
             out = self.unet(*args, **kwargs).sample
-            out_list.append(out)
-            out1 = self.down1(out)
-            out_list.append(out1)
-            out2 = self.down2(out1)
-            out_list.append(out2)
-            return out_list
+            return out
 
     def process_attn(self, avg_attn):
         attns = {self.size16: [], self.size32: [], self.size64: []}

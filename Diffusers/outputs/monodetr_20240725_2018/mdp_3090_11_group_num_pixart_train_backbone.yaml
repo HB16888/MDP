@@ -6,7 +6,7 @@ dataset:
   root_dir: 'data/KITTIDataset'
   train_split: 'train'
   test_split: 'val'
-  batch_size: 4
+  batch_size: 2
   use_3d_center: True
   class_merging: False
   use_dontcare: False
@@ -37,7 +37,7 @@ model:
 
   #Backbone
   backbone: 'resnet50'
-  train_backbone: False
+  train_backbone: True
   num_feature_levels: 4
   # dilation: False
   position_embedding: 'sine'  # 'sine' or 'learned'
@@ -52,11 +52,6 @@ model:
     sd_checkpoint_path: "/data3/ipad_3d/HuggingFace-Download-Accelerator/models--PixArt-alpha--PixArt-Sigma-XL-2-1024-MS"
     use_diffusers: True
     model_name: 'PixArtSigma'
-  # LoRA
-    use_lora: True
-    rank: 4
-
-
 
   # Depth predictor
   mode: LID
@@ -110,9 +105,9 @@ model:
 
 optimizer:
   type: 'adamw'
-  lr: 0.00005
+  lr: 0.000025
   weight_decay: 0.0001
-  unet_lr_factor: 2
+  unet_lr_factor: 0.1
 
 
 lr_scheduler:

@@ -7,7 +7,10 @@ from torch.optim.optimizer import Optimizer
 def build_optimizer(cfg_optimizer, model):
     if cfg_optimizer['train_backbone'] or cfg_optimizer['use_lora']:
         weights, biases ,unet_biases,unet_weights= [], [],[],[]
+        # print("all parameters")
         for name, param in model.named_parameters():
+            # if "Conv2d" in name:
+            #         print(name)
             if 'bias' in name and "unet" not in name:
                 biases += [param]
             elif 'bias' not in name and "unet" not in name:
