@@ -1,3 +1,4 @@
+from diffusers.pipelines.pixart_alpha.pipeline_pixart_sigma import PixArtSigmaPipeline
 from torch import nn, einsum
 import torch
 from transformers import CLIPTokenizer
@@ -37,9 +38,9 @@ class FrozenCLIPEmbedder(nn.Module):
         return self(text)
 
 def main():
-    model="T5"
+    model="PixArtSigma"
     # 定义你需要的句子
-    fixed_sentence = "A photo shows cars on city road."
+    fixed_sentence = "A photo shows cars on city road.".lower().strip()
     if model == "CLIP":
         text_encoder = FrozenCLIPEmbedder(max_length=20)
         text_encoder.cuda()
@@ -50,6 +51,7 @@ def main():
             texts = fixed_sentence # 使用固定句子
             class_embeddings = text_encoder.encode(texts).detach().mean(dim=0)
             zeroshot_weights.append(class_embeddings)
+        torch.save(zeroshot_weights, f'{model}_kitti_embeddings.pth')
     elif model == "T5":
         device="cuda"
         tokenizer = T5Tokenizer.from_pretrained("/data3/ipad_3d/HuggingFace-Download-Accelerator/models--PixArt-alpha--PixArt-Sigma-XL-2-1024-MS",subfolder="tokenizer")
@@ -72,7 +74,16 @@ def main():
             ]
             class_embeddings = pooled_output.detach().mean(dim=0)
             zeroshot_weights.append(class_embeddings)
-    torch.save(zeroshot_weights, f'{model}_kitti_embeddings.pth')
+        torch.save(zeroshot_weights, f'{model}_kitti_embeddings.pth')
+    elif model == "PixArtSigma":
+        device="cuda"
+        pipe = PixArtSigmaPipeline.from_pretrained(
+            "/data3/ipad_3d/HuggingFace-Download-Accelerator/models--PixArt-alpha--PixArt-Sigma-XL-2-1024-MS").to("cuda")
+        with torch.no_grad():
+            prompt_embeds, prompt_attention_mask, negative_embeds, negative_prompt_attention_mask=pipe.encode_prompt(prompt=fixed_sentence,device=device)
+            
+            torch.save(prompt_embeds, f'{model}_kitti_prompt_embeds.pth')
+            torch.save(prompt_attention_mask, f'{model}_kitti_prompt_attention_mask.pth')
 
 if __name__ == '__main__':
     main()

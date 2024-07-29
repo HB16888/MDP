@@ -52,9 +52,12 @@ class VPDEncoder(nn.Module):
                  use_lora=False,
                  rank=4,
                  use_diffusers=False,
-                 model_name = "SD"):
+                 model_name = "SD",
+                 dropout=0.0,
+                 lora_dropout=0.0):
         super().__init__()
         accelerator = Accelerator()
+        self.retuen_interm_layers = return_interm_layers
         if return_interm_layers:
             if use_attn==False:
                 if model_name == "SD":
@@ -67,8 +70,8 @@ class VPDEncoder(nn.Module):
                 self.strides = [8, 16, 32]
                 self.num_channels = [320, 641, 2561]
         else:
-            self.strides = [32]
-            self.num_channels = [2560]
+            self.strides = [8]
+            self.num_channels = [512]
         self.train_backbone = train_backbone
         self.use_diffusers = use_diffusers
         self.model_name = model_name
@@ -95,7 +98,7 @@ class VPDEncoder(nn.Module):
             encoder_vq = AutoencoderKL.from_pretrained(sd_checkpoint_path,subfolder="vae",safe_tensors=True).to(memory_format=torch.channels_last)
             del encoder_vq.decoder
             self.encoder_vq =torch.compile(encoder_vq, mode="max-autotune", fullgraph=True)
-            unet=UNet2DConditionModel.from_pretrained(sd_checkpoint_path,subfolder="unet",safe_tensors=True,variant="non_ema")
+            unet=UNet2DConditionModel.from_pretrained(sd_checkpoint_path,subfolder="unet",safe_tensors=True,variant="non_ema",dropout=dropout)
             unet.set_attn_processor(AttnProcessor2_0())
             del unet.conv_norm_out
             del unet.conv_out
@@ -137,6 +140,7 @@ class VPDEncoder(nn.Module):
                     lora_alpha=rank,
                     init_lora_weights="gaussian",
                     target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+                    lora_dropout=lora_dropout
                 )
                 self.unet.unet.add_adapter(unet_lora_config)
             elif self.model_name == "PixArtSigma":
@@ -195,10 +199,11 @@ class VPDEncoder(nn.Module):
             out_list = []
             out = self.unet(latents, c_crossattn,t)
             out_list.append(out)
-            out1 = self.down1(out)
-            out_list.append(out1)
-            out2 = self.down2(out1)
-            out_list.append(out2)
+            if self.retuen_interm_layers:
+                out1 = self.down1(out)
+                out_list.append(out1)
+                out2 = self.down2(out1)
+                out_list.append(out2)
             feats = out_list
         # feats_upsampled = [F.interpolate(feat, scale_factor=2) for feat in feats]
         # feats_original = [feat[:,:,feat.shape[2]//2-int(round(feat.shape[3]*384/1280/2)):feat.shape[2]//2+int(round(feat.shape[3]*384/1280/2)),:] for feat in feats_upsampled]

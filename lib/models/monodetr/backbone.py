@@ -142,6 +142,8 @@ def build_backbone(cfg):
                          rank=cfg["VPDEncoder"].get("rank",4),
                          use_diffusers=cfg["VPDEncoder"].get("use_diffusers",False),
                          model_name = cfg["VPDEncoder"].get("model_name","SD"),
+                         dropout=cfg["VPDEncoder"].get("dropout",0.0),
+                         lora_dropout=cfg["VPDEncoder"].get("lora_dropout",0.0)
                          )
         model = Joiner(backbone, position_embedding)
     else:
